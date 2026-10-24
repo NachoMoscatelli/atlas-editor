@@ -1,9 +1,23 @@
 # Pendientes acordados
 
+- [x] Separar tablero, geografía y territorios: propuestas de costas e islas,
+      edición visual, mar sin territorios y distribución por masa.
+- [x] Continuidad terrestre hasta el encuadre y tierra de contexto sin región.
+- [ ] Definir una separación numérica por región creando tierra de contexto,
+      sin recortar ni deformar las masas terrestres.
+- [x] Agua y montañas pintables que fragmentan superficie apta y excluyen regiones;
+      el agua separa masas físicas, las montañas las conservan.
+- [ ] Ríos como entidades semánticas con nombre, curso y edición propia.
+- [x] Dibujar tierra libremente, sumar masas y recortar agua.
+- [ ] Aplicar recortes de geografía preservando las divisiones y nombres existentes.
 - [ ] Exportar PDF directamente, conservando las medidas físicas.
 - [ ] Exportar o imprimir tableros en mosaico sobre varias hojas.
-- [ ] Importar GeoJSON/SVG como herramientas del editor.
-- [ ] Ampliar la geometría para huecos, lagos interiores y multipolígonos.
+- [x] Biblioteca de mapas con nombres y miniaturas, guardado independiente y etapas.
+- [x] Agrupar, mover y borrar masas terrestres.
+- [x] Importar GeoJSON/Atlas como conjuntos terrestres del editor.
+- [ ] Importar SVG como geometría editable.
+- [x] Huecos y lagos interiores; masas separadas y montañas con varios contornos.
+- [x] Territorios individuales formados por varios componentes desconectados.
 - [ ] Verificar las dimensiones reales del tablero de TEG La Revancha;
       70 × 50 cm sigue siendo una referencia provisional editable.
 - [ ] Comprobar la interfaz en un teléfono físico.

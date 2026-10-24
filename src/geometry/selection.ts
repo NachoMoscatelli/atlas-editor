@@ -1,10 +1,11 @@
+import {contains,polygonsOf,rings} from './polygons';
 import type { MapProject, Point } from '../model/types';
 import { edgeKey, distanceToSegment } from './topology';
 
 /** Boundary of a selection, including holes and disconnected components. */
 export function selectionBoundary(p:MapProject,ids:readonly string[]) {
   const chosen=new Set(ids),boundary=new Map<string,[string,string]>();
-  p.territories.filter(t=>chosen.has(t.id)).forEach(t=>t.vertices.forEach((a,i)=>{const b=t.vertices[(i+1)%t.vertices.length],key=edgeKey(a,b);if(boundary.has(key))boundary.delete(key);else boundary.set(key,[a,b]);}));
+  p.territories.filter(t=>chosen.has(t.id)).forEach(t=>rings(t).forEach(r=>r.forEach((a,i)=>{const b=r[(i+1)%r.length],key=edgeKey(a,b);if(boundary.has(key))boundary.delete(key);else boundary.set(key,[a,b]);})));
   return [...boundary.values()];
 }
 export function selectionPath(p:MapProject,ids:readonly string[]) {
@@ -28,10 +29,10 @@ export function areasInLasso(p:MapProject,points:readonly Point[]):string[] {
   const segments=points.slice(1).map((b,i)=>[points[i],b] as const);
   if(closed)segments.push([points.at(-1)!,points[0]]);
   return p.territories.filter(t=>{
-    const polygon=t.vertices.map(id=>p.vertices[id]);
-    if(points.some(q=>pointInPolygon(q,polygon)))return true;
-    if(closed&&polygon.some(q=>pointInPolygon(q,points)))return true;
-    return polygon.some((a,i)=>segments.some(([c,d])=>segmentsTouch(a,polygon[(i+1)%polygon.length],c,d)));
+    const polygon=t.vertices.map(id=>p.vertices[id]),all=rings(t).map(r=>r.map(id=>p.vertices[id]));
+    if(points.some(q=>t.holes?.length||t.components?.length?polygonsOf(p,t).some(poly=>contains(poly,q)):pointInPolygon(q,polygon)))return true;
+    if(closed&&all.some(r=>r.some(q=>pointInPolygon(q,points))))return true;
+    return all.some(r=>r.some((a,i)=>segments.some(([c,d])=>segmentsTouch(a,r[(i+1)%r.length],c,d))));
   }).map(t=>t.id);
 }
 function segmentsTouch(a:Point,b:Point,c:Point,d:Point) {

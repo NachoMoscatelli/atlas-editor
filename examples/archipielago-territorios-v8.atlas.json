@@ -1,0 +1,171 @@
+{
+  "version": 6,
+  "stage": "territories",
+  "title": "Isla principal y su islote",
+  "width": 920,
+  "height": 604.285714,
+  "vertices": {
+    "v0": {
+      "x": 177.050338,
+      "y": 105.75
+    },
+    "v1": {
+      "x": 419.57862,
+      "y": 105.75
+    },
+    "v2": {
+      "x": 419.57862,
+      "y": 498.535714
+    },
+    "v3": {
+      "x": 177.050338,
+      "y": 498.535714
+    },
+    "v4": {
+      "x": 451.915724,
+      "y": 223.585714
+    },
+    "v5": {
+      "x": 476.168552,
+      "y": 223.585714
+    },
+    "v6": {
+      "x": 476.168552,
+      "y": 262.864286
+    },
+    "v7": {
+      "x": 451.915724,
+      "y": 262.864286
+    },
+    "v8": {
+      "x": 581.264141,
+      "y": 236.678571
+    },
+    "v9": {
+      "x": 742.949662,
+      "y": 236.678571
+    },
+    "v10": {
+      "x": 742.949662,
+      "y": 498.535714
+    },
+    "v11": {
+      "x": 581.264141,
+      "y": 498.535714
+    }
+  },
+  "territories": [
+    {
+      "id": "area0",
+      "name": "Isla principal e islote",
+      "color": "#b5cbb0",
+      "vertices": [
+        "v0",
+        "v1",
+        "v2",
+        "v3"
+      ],
+      "label": {
+        "x": 298.314479,
+        "y": 108.818638390625
+      },
+      "surface": "land",
+      "regionId": "region0",
+      "components": [
+        {
+          "vertices": [
+            "v4",
+            "v5",
+            "v6",
+            "v7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "area2",
+      "name": "Territorio 3.1",
+      "color": "#b1cdd1",
+      "vertices": [
+        "v8",
+        "v9",
+        "v10",
+        "v11"
+      ],
+      "label": {
+        "x": 662.1069015,
+        "y": 238.7243299296875
+      },
+      "surface": "land",
+      "regionId": "region2"
+    }
+  ],
+  "groups": [
+    {
+      "id": "region0",
+      "name": "Región 1",
+      "color": "#b5cbb0",
+      "keepSingle": true
+    },
+    {
+      "id": "region2",
+      "name": "Región 3",
+      "color": "#b1cdd1",
+      "keepSingle": true
+    }
+  ],
+  "generation": {
+    "count": 3,
+    "seed": "islas-v8",
+    "irregularity": 0.7,
+    "segments": 3,
+    "widthMm": 700,
+    "heightMm": 500
+  },
+  "geography": {
+    "landforms": [
+      {
+        "id": "import-land-0",
+        "name": "Masa 1",
+        "groupId": "import-group-0",
+        "vertices": [
+          "v0",
+          "v1",
+          "v2",
+          "v3"
+        ]
+      },
+      {
+        "id": "import-land-1",
+        "name": "Masa 2",
+        "groupId": "import-group-0",
+        "vertices": [
+          "v4",
+          "v5",
+          "v6",
+          "v7"
+        ]
+      },
+      {
+        "id": "import-land-2",
+        "name": "Masa 3",
+        "groupId": "import-group-0",
+        "vertices": [
+          "v8",
+          "v9",
+          "v10",
+          "v11"
+        ]
+      }
+    ],
+    "mountains": [],
+    "margin": 0,
+    "waterColor": "#b8d7dc",
+    "landGroups": [
+      {
+        "id": "import-group-0",
+        "name": "Archipiélago de ejemplo"
+      }
+    ]
+  }
+}

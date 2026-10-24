@@ -1,4 +1,4 @@
-# Atlas · Editor territorial · Versión 5.3
+# Atlas · Editor territorial · Versión 8.0
 
 Editor local con React, TypeScript y SVG para crear mapas imprimibles con fronteras compartidas, agua y tierra sin región. No contiene mecánicas de juego.
 
@@ -27,6 +27,88 @@ npm run build    # TypeScript + producción en dist/
 npm run preview  # Servir la compilación de producción
 ```
 
+## Biblioteca → Terraformación → Territorios (v8.0)
+
+Al entrar se abre **Mis mapas**, con nombre, miniatura, etapa y cantidad de masas/territorios de cada proyecto. **+ Nuevo mapa** permite nombrarlo y elegir dimensiones; **Crear y terraformar** abre un lienzo de agua, sin generar territorios automáticamente. **← Mis mapas** vuelve a la biblioteca. Editar el título del mapa actualiza también su tarjeta.
+
+Los mapas se guardan por separado en **IndexedDB** del mismo navegador y dirección. Se recupera una sola vez el proyecto que estaba en el almacenamiento anterior; ese respaldo no se elimina ni se sobrescribe. Cerrar y volver a abrir la aplicación recupera la biblioteca. El indicador informa si hay escrituras pendientes o si falló el guardado. Descargar JSON sigue siendo la forma de transportar y respaldar un mapa; no hay sincronización entre navegadores o computadoras. **Importar proyecto** en la biblioteca agrega otra entrada, sin reemplazar los mapas existentes.
+
+### 1. Terraformar y organizar masas
+
+Los pinceles forman las masas conectadas según la tierra resultante. **Seleccionar / mover** permite elegir una masa con clic y varias con Mayús + clic o las casillas del administrador derecho. **Agrupar masas** crea un conjunto con nombre; las piezas permanecen separadas. Al seleccionar un miembro se selecciona el conjunto completo. **Seleccionar piezas individuales** permite trabajar con solo algunos miembros; **Desagrupar masas** quita su agrupación.
+
+Arrastrar mueve la selección completa, manteniendo las distancias y llevando las montañas correspondientes. Se encaja el conjunto dentro del mapa y se rechazan superposiciones o contactos que lo peguen a otra masa. Para unir tierra físicamente, usar el pincel Tierra. **Borrar masas seleccionadas** quita también las montañas de esas masas; se puede deshacer. Los cortes de agua heredan el grupo de la masa original; una unión pintada conserva el grupo de la masa con mayor superposición.
+
+**Importar masas** acepta un proyecto Atlas JSON o GeoJSON de polígonos, multipolígonos y colecciones. El conjunto importado llega agrupado con el nombre del archivo; se ajusta su escala común para colocarlo en una zona libre. Para cargar un archipiélago real, como las Islas Malvinas, usar un archivo GeoJSON con sus contornos. El editor no incluye un catálogo de costas reales. GeoJSON se interpreta en longitud/latitud según [RFC 7946](https://www.rfc-editor.org/rfc/rfc7946.html), con una vista local aproximada y ajuste al lienzo; no es una proyección para mediciones. No se admiten geometrías que crucen el antimeridiano, líneas/puntos, más de 9000 posiciones o archivos mayores de 3 MB. La importación SVG sigue pendiente.
+
+**Guardar terraformación** guarda masas, conjuntos, tierra/agua y montañas, sin crear territorios. Se puede volver a la biblioteca y continuar más adelante. Los conjuntos terrestres y las regiones son estructuras independientes.
+
+### 2. Crear territorios sobre la tierra existente
+
+Desde el mapa, pulsar **Crear territorios**, o **Continuar a territorios** dentro de la terraformación. Elegir cantidad por masa, previsualizar y aplicar. El agua y las montañas siguen excluidas. Las masas y sus grupos se conservan al generar la distribución. Volver a terraformar y aplicar reconstruye la distribución anterior; para editar territorios existentes sin reemplazarlos, usar sus herramientas del lienzo.
+
+Para que una isla y un islote sean **un solo territorio**, seleccionar sus áreas con Mayús y pulsar **Unir en una sola área**. En los mapas nuevos, el resultado puede tener piezas separadas por agua: comparte identidad, nombre, color, selección y región, sin rellenar el mar. La selección por lazo, los nodos, el movimiento, la división, el guardado y el SVG contemplan todas las piezas. Al subdividir un territorio con más componentes que partes solicitadas, los islotes se asignan a las piezas principales más próximas.
+
+El esquema de archivo es **v6**, con stage (terrain/territories), geography.landGroups, groupId por masa y components por territorio. Se mantiene lectura de v1–v5. Las masas físicas tienen contornos propios; agruparlas nunca las convierte en una sola superficie. La biblioteca guarda proyectos completos, sin guardar una miniatura rasterizada: las vistas se dibujan desde su geometría.
+
+**Ejemplos:** examples/archipielago-ejemplo.geojson contiene geometría ficticia para probar la importación; no representa las Islas Malvinas. examples/archipielago-terraformacion-v8.atlas.json guarda solo masas agrupadas. examples/archipielago-territorios-v8.atlas.json y su SVG contienen tres masas y dos territorios, uno compuesto por isla e islote.
+
+Verificación v8.0: **162 pruebas**, compilación y prueba del flujo en navegador: recuperación del mapa anterior, creación vacía, importación agrupada, arrastre conjunto, borrar/deshacer, guardar terraformación sin territorios, volver/recargar biblioteca, generar áreas, unir isla e islote y recuperar ese territorio al recargar. Se probó en un puerto separado del proyecto habitual del usuario. Las pruebas de IndexedDB usan una base simulada aislada.
+
+## Dibujar terreno con pinceles (v7.0 — nombres y flujo de la interfaz anterior)
+
+**Geografía** abre el dibujo actual; **Generar mapa → Dibujar terreno** inicia un borrador vacío con las dimensiones elegidas. Ya no se proponen continentes o islas al azar. Un navegador sin proyecto guardado comienza con agua; el modo rectangular clásico sigue disponible de forma explícita. Los proyectos existentes no se regeneran al actualizar.
+
+La paleta está encima del lienzo, sin panel lateral de propuestas. Hay tres herramientas:
+
+- **Tierra · contorno**: mantener clic izquierdo y rodear una superficie. Al soltar, el recorrido se cierra al punto inicial y se suma a la tierra existente. Las superficies que se tocan se unen; pintar sobre agua la rellena. También elimina montañas dentro del área pintada.
+- **Agua · pincel**: mantener clic y trazar con el grosor elegido. El trazo recorta tierra y montañas. Si cruza una masa de lado a lado, la separa; un anillo cerrado conserva una isla en el centro. Un toque crea un pequeño lago. Los extremos son redondeados.
+- **Montañas · pincel**: mismo gesto y grosor que agua, con textura vectorial. Solo pinta sobre tierra. La masa terrestre continúa siendo una sola, aunque la superficie apta para territorios pueda quedar dividida. Las montañas no tienen territorios ni asignación regional encima.
+
+El **Grosor** se expresa como porcentaje del lado menor del encuadre. Se aproxima con segmentos vectoriales; no son imágenes superpuestas. En agua/montañas, si el trazo termina cerca de su inicio, se conecta para cerrar el anillo. La tierra siempre cierra su contorno al soltar. **Deshacer trazo / Rehacer trazo** conservan hasta 30 cambios del borrador; Ctrl+Z / Ctrl+Mayús+Z funcionan fuera de campos. Escape cancela un trazo activo; el siguiente Escape cierra el borrador. **Vaciar dibujo** también puede deshacerse.
+
+**Aplicar solo geografía** crea áreas de tierra sin región, una por zona apta conectada. Permite guardar y seguir diseñando antes de crear regiones, incluidos mapas de solo agua o de tierra enteramente montañosa. **Continuar a territorios** permite elegir cantidad por masa y creación opcional de región. El mínimo depende de las zonas aptas que separan las montañas; el límite total sigue siendo 120. **Previsualizar territorios → Aplicar mapa** respeta agua y montañas. La irregularidad y el detalle se aplican a las fronteras internas, manteniendo las costas.
+
+La generación reconstruye las divisiones y regiones actuales **solo al aplicar**, en una operación reversible. Cancelar conserva el proyecto abierto. Los cortes, uniones, nodos, selección por lazo y SVG contemplan huecos interiores. El JSON usa **esquema v5**, que requiere esta versión del editor; la lectura de v1/v2/v3/v4 se conserva. La copia local usa atlas.project.v5 y mantiene las anteriores como respaldo. Máximos: 3 MB, 120 territorios, 80 masas, 120 polígonos montañosos, 12000 vértices totales y 2000 nodos por anillo. Los fragmentos menores de una unidad cuadrada del lienzo se descartan como residuos del pincel; un exceso de detalle se informa conservando el borrador anterior.
+
+Las operaciones de dibujo usan [polygon-clipping](https://github.com/mfogel/polygon-clipping). src/geometry/paint.ts implementa trazos y distribución; polygons.ts concentra operaciones, anillos con huecos, etiquetas, normalización compartida y validación de cobertura. La geometría territorial cubre exactamente tierra menos montañas. Las montañas siguen siendo parte de las masas físicas.
+
+Ejemplo: examples/terreno-pintado-v7.atlas.json y su SVG contienen un continente, un anillo de agua con isla y una cordillera. El JSON se abre desde **Abrir proyecto**.
+
+Comprobación v7: 149 pruebas del motor aprobadas, compilación correcta y nueve comprobaciones del flujo de dibujo en /tests/browser/painting.html. Esta última usa eventos sintéticos y una captura simulada de puntero; se comprobaron adicionalmente arrastres nativos de agua y montañas, vista previa de 32 territorios, aplicar y recuperación exacta del mapa con Deshacer. Las pruebas usaron un puerto separado del proyecto del usuario.
+
+## Tierra, regiones y encuadre (v6.1 — controles anteriores reemplazados por pinceles)
+
+El mapa distingue **encuadre**, **tierra/agua** y **asignación regional**. Una masa terrestre puede continuar hasta los lados del encuadre. Quitarle una región a un área no elimina ni deforma la tierra.
+
+- Para un archipiélago como escenario, mantener las masas rodeadas de agua.
+- Para un continente con regiones de interés, prolongar tierra hasta el borde y dejar las áreas exteriores sin región. Las fronteras regionales pueden quedar dentro de una misma masa terrestre.
+- Para dos costas con una isla entre ellas, ajustar masas independientes y prolongar las dos principales hacia sus lados respectivos. Esto representa la distribución de tierra y agua; el río como entidad geométrica divisoria sigue pendiente.
+
+En **Geografía → Masa seleccionada**, elegir **Continuidad de tierra** y pulsar **Prolongar tierra hasta el borde**. Se conserva la costa que mira hacia el interior y se continúa el otro lado hasta el encuadre. Se puede repetir hacia otro lado; se rechazan cruces con otras masas. Esta operación modifica el borrador y, al aplicar, regenera la distribución, como las demás ediciones de Geografía.
+
+**Separación inicial del borde** admite 0–20 % y solo afecta la ubicación de las propuestas nuevas. No crea una franja prohibida ni limita el arrastre posterior. Arrastrar una masa hasta el borde conserva su forma; prolongarla agrega tierra.
+
+Desactivar **Crear región en esta masa** deja sus áreas como tierra de contexto. En Distribuir territorios se puede elegir lo mismo por masa; inicialmente se reserva una sola área para cada masa de contexto. En el mapa ya aplicado, seleccionar una o varias áreas y pulsar **Dejar como tierra sin región**, en **Seleccionar y unir**, quita su asignación sin cambiar vértices, nombres o costas. Se puede deshacer en una operación. La casilla **Asignar a una región** de un territorio permite devolverle una región individual.
+
+La separación entre una región y el borde puede estar ocupada por agua o tierra sin región. **Todavía no se genera automáticamente una franja de ancho numérico alrededor de una región**: se delimita editando sus áreas. Ríos y montañas como entidades que fragmentan territorios e impiden asignaciones regionales quedan para otra iteración. Las medidas físicas de la hoja y su presentación se mantienen independientes de esta separación geográfica.
+
+Los archivos mantienen el esquema v4; margin pasa a registrar solo la separación inicial, admite cero y no restringe la geometría. Para abrir tierras que llegan al encuadre se necesita el editor v6.1 o posterior. Los archivos existentes no se regeneran al actualizar.
+
+## Costas e islas: geografía primero (v6.0 — historial de la interfaz anterior)
+
+1. Pulsar **Generar mapa**, elegir **Costas e islas · geografía primero**, configurar tamaño, semilla y división, y pulsar **Definir geografía**. **Rectángulo clásico** conserva la generación anterior.
+2. En **Definir tierra y agua**, elegir cantidad de islas, extensión de tierra, irregularidad de costa y separación inicial del borde. **Otra propuesta** varía la forma usando la misma semilla. Estos controles reemplazan la propuesta, sin modificar el proyecto abierto.
+3. Arrastrar una masa para moverla, o sus puntos para ajustar la costa. El selector permite elegir y nombrar cada masa, agregar un punto en su tramo más largo o quitarla. Se impiden cruces y superposiciones, y se permite llegar al encuadre.
+4. Continuar a **Distribuir territorios**, indicar la cantidad por masa y pulsar **Previsualizar territorios**. Se admiten entre 4 y 120 en total, con al menos uno por masa. La distribución inicial se propone según la superficie.
+5. **Aplicar mapa costero** reemplaza el mapa en una sola operación que puede deshacerse. Cancelar conserva el proyecto anterior.
+
+El botón superior **Geografía** abre las costas del mapa actual cuando existen, o propone una geografía nueva para mapas antiguos. **Editar aquí y aplicar genera otra distribución de territorios y regiones**: no conserva las divisiones o nombres actuales. Revisar la vista previa antes de aplicar. Para ajustes puntuales que conserven los territorios, usar **Nodos** en el lienzo principal.
+
+El mar es un fondo sin territorios seleccionables; las costas son límites geométricos reales. Cada masa marcada para ello comienza con una región, que luego puede reorganizarse desde **Regiones**, incluso agrupando territorios de islas diferentes. Las divisiones posteriores conservan la región. Los territorios costeros siempre son tierra y el agua se define en Geografía. Los mapas rectangulares anteriores siguen admitiendo áreas de agua como antes.
+
+Esta primera etapa admite masas simples separadas, movimiento y edición de vértices. **Todavía no permite lagos interiores, dibujo libre de costas ni territorios con varios contornos**. Cambiar los parámetros de propuestas no conserva los ajustes manuales del borrador. JSON y SVG incluyen el mar y las costas; los proyectos costeros usan el esquema v4 y requieren esta versión del editor.
+
 ## Vista Solo áreas (v5.3)
 
 Activar **Solo áreas** en la barra de herramientas, junto a **Etiquetas**, oculta el marco de presentación, la sombra, el título, el subtítulo y el pie del mapa. Queda solo el rectángulo de territorios, con sus colores y fronteras. Desactivarlo recupera la presentación completa sin modificar la geometría ni el historial. **Etiquetas** permite ocultar los nombres de forma independiente. El mapa continúa siendo editable en ambas vistas.
@@ -38,7 +120,7 @@ Activar **Solo áreas** en la barra de herramientas, junto a **Etiquetas**, ocul
 1. Pulsar **✧ Generar mapa** en la barra superior. La ventana reúne cantidad de territorios, semilla, irregularidad y tramos por frontera. Abrirla no modifica el mapa.
 2. Indicar **Ancho (cm)** y **Alto (cm)**, entre 10 y 200 cm por lado. Se admiten tamaños horizontales, verticales y cuadrados. **Usar 70 × 50 cm** recupera el tamaño de referencia.
 3. **70 × 50 cm es un valor provisional acordado con el usuario**, no una medida verificada del tablero desplegado de TEG La Revancha. La página del [fabricante](https://yetem.com/juegos/t-e-g-la-revancha-2/) consultada no proporciona esas medidas y las publicaciones comerciales encontradas indican dimensiones de embalaje. Las medidas exactas se pueden introducir en cualquier momento al generar otro mapa.
-4. Pulsar **Generar mapa** dentro de la ventana para reemplazar el proyecto actual. **Cancelar**, la × o Escape cierran la ventana sin aplicar la configuración. No hay una segunda confirmación: la ventana indica que reemplaza el mapa y que se puede recuperar con **Deshacer**.
+4. En el modo clásico, pulsar **Generar mapa** dentro de la ventana para reemplazar el proyecto actual. En Costas e islas, continuar al flujo de geografía descrito arriba. **Cancelar**, la × o Escape cierran la ventana sin aplicar la configuración. No hay una segunda confirmación: la ventana indica que reemplaza el mapa y que se puede recuperar con **Deshacer**.
 5. El ancho y alto corresponden a la **hoja/tablero completo**, incluidos título y márgenes, y se guardan con el proyecto. El mapa ocupa el espacio interior y cambia sus proporciones sin estirar los territorios después de generarlos. Los nuevos mapas parten del tamaño provisional; los proyectos antiguos conservan su exportación A4 hasta generar un nuevo mapa con dimensiones elegidas.
 
 El SVG utiliza las medidas físicas del proyecto, ya no un A4 fijo. Para obtener el tamaño previsto al imprimir, usar escala 100 % o tamaño real y una hoja/impresión adecuada; ajustar a página cambia la escala. La exportación PDF y la impresión en mosaico de varias hojas siguen siendo extensiones futuras. La interfaz muestra las dimensiones del proyecto junto al título y en el pie del mapa.
@@ -148,16 +230,18 @@ Ambos vecinos recorren los mismos nodos en sentidos opuestos. Agregar, mover o q
 - **Nodos:** arrastrar círculos y usar los signos +. Se mantiene la última posición válida si un movimiento produciría cruces.
 - **Nombres:** arrastrar una etiqueta sin mover fronteras. Los nombres largos pueden requerir abreviación o reubicación manual.
 - **Deshacer / Rehacer:** hasta 40 operaciones; `Ctrl+Z` / `Ctrl+Mayús+Z`, también Cmd en macOS. El historial no se guarda en el JSON.
-- **Guardar proyecto:** descarga `mapa.atlas.json`. **Abrir proyecto** acepta esquemas v1, v2 y v3; migra los antiguos sin alterar su geometría, nombres ni colores.
+- **Guardar proyecto:** descarga `mapa.atlas.json`. **Abrir proyecto** acepta esquemas v1, v2, v3 y v4; migra los antiguos sin alterar su geometría, nombres ni colores.
 - **Exportar SVG:** salida vectorial con el tamaño físico elegido (A4 horizontal de 297 × 210 mm para archivos anteriores sin dimensiones), título, colores y nombres según **Etiquetas**. Abrir en un navegador o editor vectorial para imprimir.
 
-El proyecto se recupera desde el almacenamiento local del mismo navegador, perfil y dirección. La v4 utiliza una copia local con esquema v3 y mantiene las copias anteriores; si aún no hay copia nueva, recupera el proyecto de la versión previa. Para conservar o transportar trabajo, descargar el JSON. El SVG es una salida imprimible; su reimportación aún no está implementada.
+El proyecto se recupera desde el almacenamiento local del mismo navegador, perfil y dirección. La v6 utiliza la clave local atlas.project.v4 y mantiene las copias anteriores; si aún no hay copia nueva, recupera el proyecto de la versión previa. Para conservar o transportar trabajo, descargar el JSON. El SVG es una salida imprimible; su reimportación aún no está implementada.
 
 ## Arquitectura
 
 ```text
-src/model/types.ts        Esquema v3 y contratos MapImporter / MapExporter
+src/model/types.ts        Esquemas v3/v4 y contratos MapImporter / MapExporter
 src/geometry/generate.ts  Semilla, Voronoi, relajación y subdivisión
+src/geometry/geography.ts Costas, masas separadas y distribución sobre tierra
+src/editor/GeographyDialog.tsx Borrador visual de geografía y vista previa
 src/geometry/topology.ts  Aristas únicas, áreas, cruces y rutas SVG
 src/geometry/edit.ts      Subdivisión y eliminación de nodos compartidos
 src/geometry/areas.ts     División de áreas, vecinos y fusión de contornos
@@ -177,15 +261,23 @@ src/editor/GenerationDialog.tsx Ventana de generación y dimensiones en cm
 src/App.tsx               Controles del editor
 ```
 
-La malla almacena un diccionario de vértices y anillos de identificadores por área. La versión 5 de la aplicación usa el esquema de archivo v3 y abre archivos v1/v2/v3. El campo histórico `territories` contiene las áreas geométricas; cada una tiene `surface: 'land' | 'water'` y `regionId: string | null`. Cada área puede tener una región propia (`regionId === id`), estar libre (`null`) o compartir un identificador de `groups`. Cada grupo almacena `id`, `name` y `color`, con al menos dos miembros por defecto. La v5 admite el indicador opcional `keepSingle: true` para conservar la identidad de una región con un solo territorio. Los registros vacíos se eliminan; el máximo de registros es 120. El importador valida las referencias; las operaciones limpian los grupos sin miembros suficientes según ese indicador, sin modificar los estados previos del historial. Se mantiene el esquema v3 y la compatibilidad de lectura con los proyectos anteriores; las versiones antiguas del editor no admiten los nuevos registros de región de un solo integrante.
+La malla almacena un diccionario de vértices y anillos de identificadores por área. La aplicación abre v1/v2/v3/v4. Los mapas clásicos conservan v3; los costeros usan v4 con geography.landforms (anillos de los mismos identificadores de vértices de la malla), margin y waterColor. Cada arista de costa aparece una sola vez entre los territorios; las aristas interiores, dos veces. La superficie territorial total coincide con la tierra, dejando el mar fuera de la malla. El campo histórico `territories` contiene las áreas geométricas; cada una tiene `surface: 'land' | 'water'` y `regionId: string | null`. Cada área puede tener una región propia (`regionId === id`), estar libre (`null`) o compartir un identificador de `groups`. Cada grupo almacena `id`, `name` y `color`, con al menos dos miembros por defecto. La v5 admite el indicador opcional `keepSingle: true` para conservar la identidad de una región con un solo territorio. Los registros vacíos se eliminan; el máximo de registros es 120. El importador valida las referencias; las operaciones limpian los grupos sin miembros suficientes según ese indicador, sin modificar los estados previos del historial. Se mantiene el esquema v3 y la compatibilidad de lectura con los proyectos anteriores; las versiones antiguas del editor no admiten los nuevos registros de región de un solo integrante.
 
 La generación usa [d3-delaunay/Voronoi](https://d3js.org/d3-delaunay/voronoi), dos pasadas de relajación y subdivisión de aristas interiores. Los desplazamientos se limitan según su proximidad a otras aristas. La configuración utiliza [Vite](https://vite.dev/guide/).
 
-La carga valida versión, tipos, referencias, colores, áreas positivas, cruces, incidencia y cobertura rectangular. Límites: 3 MB, 120 áreas, 3000 vértices y 500 nodos por anillo. El SVG escapa textos como XML y conserva superficie/asignación como atributos de sus polígonos.
+La carga valida versión, tipos, referencias, colores, áreas positivas, cruces, incidencia y cobertura rectangular o costera según el proyecto. Límites: 3 MB, 120 áreas, 3000 vértices y 500 nodos por anillo. El SVG escapa textos como XML y conserva superficie/asignación como atributos de sus polígonos.
 
-**Próximas extensiones:** implementar `MapImporter` para GeoJSON/SVG y normalizar fronteras hacia la misma malla editable. El esquema v3 todavía admite un anillo simple por área y una partición rectangular completa: huecos, multipolígonos y proyección requieren ampliar el esquema y sus validadores. Implementar `MapExporter` para PDF; actualmente puede imprimirse el SVG usando «Guardar como PDF». Para mapas mayores, añadir índice espacial y validación en un worker: el chequeo actual de cruces es cuadrático.
+**Próximas extensiones:** implementar `MapImporter` para GeoJSON/SVG y normalizar fronteras hacia la misma malla editable. El esquema v4 admite masas de tierra separadas, con un anillo simple por territorio. Huecos, multipolígonos y proyección requieren ampliar el esquema y sus validadores. Implementar `MapExporter` para PDF; actualmente puede imprimirse el SVG usando «Guardar como PDF». Para mapas mayores, añadir índice espacial y validación en un worker: el chequeo actual de cruces es cuadrático.
 
 ## Ejemplos y verificación
+
+- `examples/continente-contexto-v6.1.atlas.json` y `examples/continente-contexto-v6.1.svg`: ejemplo esquemático de continente hasta el borde con tierra exterior sin región. No representa una geografía histórica.
+
+Verificación v6.1: 135 pruebas aprobadas, compilación y edición en navegador comprobadas. Se verificaron continuidad hasta dos bordes, islas intactas, tierra sin región y Deshacer recuperando exactamente geometría, colores y asignaciones.
+
+- `examples/costas-islas-v6.atlas.json` y `examples/costas-islas-v6.svg`: continente y tres islas, 32 territorios, mar sin territorios y tamaño físico 70 × 50 cm.
+
+Verificación v6.0 (23 de octubre de 2026): 127 pruebas aprobadas y compilación correcta. La prueba en navegador generó una vista previa de 72 territorios sobre cuatro masas, aplicó el mapa y recuperó con Deshacer exactamente las fronteras del proyecto anterior.
 
 - `examples/tablero-solo-areas-v5.3.svg`: exportación del tablero sin marco, título ni márgenes decorativos.
 

@@ -9,6 +9,15 @@ export function displayColor(p:MapProject,t:Territory) {
 }
 export function toggleSelection(ids:string[],id:string) {return ids.includes(id)?ids.filter(x=>x!==id):[...ids,id];}
 
+/** Context land remains visible with exactly the same geometry and surface. */
+export function unassignAreas(project:MapProject,ids:readonly string[]):MapProject {
+  const chosen=new Set(ids);
+  if(!chosen.size||[...chosen].some(id=>!project.territories.some(t=>t.id===id)))throw new Error('Seleccioná áreas existentes.');
+  const p=structuredClone(project);
+  p.territories.forEach(t=>{if(chosen.has(t.id))t.regionId=null;});
+  return cleanGroups(p);
+}
+
 /** Explicit region identities may retain a single member; empty records are removed. */
 export function cleanGroups(p:MapProject) {
   const retained=p.groups.filter(g=>p.territories.filter(t=>t.regionId===g.id).length>=(g.keepSingle?1:2));

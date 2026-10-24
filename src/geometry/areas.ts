@@ -1,3 +1,5 @@
+import {addMultiPolygon,normalizeTopology,multiLabel,polygonsOf,rings,union} from './polygons';
+import {cutPaintTerritory} from './paint';
 import type { MapProject, Point, Territory } from '../model/types';
 import { area, edgeKey, validGeometry } from './topology';
 import { cleanGroups } from '../model/groups';
@@ -6,17 +8,17 @@ import { updateRegion } from '../model/regions';
 const EPS=1e-6;
 export function nearestBoundary(p:MapProject,t:Territory,point:Point) {
   let best={a:'',b:'',point:{x:0,y:0},distance:Infinity};
-  t.vertices.forEach((a,i)=>{const b=t.vertices[(i+1)%t.vertices.length],A=p.vertices[a],B=p.vertices[b];
+  rings(t).forEach(r=>r.forEach((a,i)=>{const b=r[(i+1)%r.length],A=p.vertices[a],B=p.vertices[b];
     const length=(B.x-A.x)**2+(B.y-A.y)**2;
     const u=length?Math.max(0,Math.min(1,((point.x-A.x)*(B.x-A.x)+(point.y-A.y)*(B.y-A.y))/length)):0;
     const q={x:A.x+u*(B.x-A.x),y:A.y+u*(B.y-A.y)},distance=Math.hypot(point.x-q.x,point.y-q.y);
     if(distance<best.distance)best={a,b,point:q,distance};
-  });return best;
+  }));return best;
 }
 export function neighbors(p:MapProject,id:string) {
   const t=p.territories.find(t=>t.id===id);if(!t)return [];
-  const border=new Set(t.vertices.map((a,i)=>edgeKey(a,t.vertices[(i+1)%t.vertices.length])));
-  return p.territories.filter(other=>other.id!==id&&other.vertices.some((a,i)=>border.has(edgeKey(a,other.vertices[(i+1)%other.vertices.length]))));
+  const border=new Set(rings(t).flatMap(r=>r.map((a,i)=>edgeKey(a,r[(i+1)%r.length]))));
+  return p.territories.filter(other=>other.id!==id&&rings(other).some(r=>r.some((a,i)=>border.has(edgeKey(a,r[(i+1)%r.length])))));
 }
 /** Horizontal scan lines find an interior label even for a concave face. */
 export function interiorPoint(p:MapProject,ids:string[]):Point {
@@ -33,13 +35,15 @@ function insertBoundary(p:MapProject,id:string,point:Point) {
   if(hit.distance>EPS)throw new Error('Los extremos deben estar sobre el borde del área.');
   for(const id of [hit.a,hit.b])if(Math.hypot(p.vertices[id].x-hit.point.x,p.vertices[id].y-hit.point.y)<EPS)return id;
   const vertex=uniqueId(p.vertices,'cut');p.vertices[vertex]=hit.point;
-  p.territories.forEach(t=>{const ids=t.vertices;t.vertices=ids.flatMap((a,i)=>edgeKey(a,ids[(i+1)%ids.length])===edgeKey(hit.a,hit.b)?[a,vertex]:[a]);});return vertex;
+  p.territories.forEach(t=>{const ids=t.vertices;t.vertices=ids.flatMap((a,i)=>edgeKey(a,ids[(i+1)%ids.length])===edgeKey(hit.a,hit.b)?[a,vertex]:[a]);});
+  p.geography?.landforms.forEach(land=>{const ids=land.vertices;land.vertices=ids.flatMap((a,i)=>edgeKey(a,ids[(i+1)%ids.length])===edgeKey(hit.a,hit.b)?[a,vertex]:[a]);});return vertex;
 }
 function assertResult(p:MapProject) {
   if(p.territories.length>120||Object.keys(p.vertices).length>3000||p.territories.some(t=>t.vertices.length>500))throw new Error('La operación supera el límite de áreas o nodos.');
   if(!validGeometry(p))throw new Error('La línea debe quedar dentro del área y producir dos polígonos sin cruces.');
 }
 export function divideArea(project:MapProject,id:string,start:Point,end:Point):{project:MapProject;newId:string} {
+  if(project.version>=5)return cutPaintTerritory(project,id,start,end);
   const source=project.territories.find(t=>t.id===id);
   if(!source)throw new Error('Seleccioná un área para dividir.');
   // Legacy individual regions store their metadata on their sole territory.
@@ -69,7 +73,8 @@ export function mergeSelection(project:MapProject,ids:string[]):MapProject {
   if(selected.length!==chosen.size)throw new Error('La selección contiene áreas que ya no existen.');
   const reached=new Set([keepId]),pending=[keepId];
   while(pending.length){const id=pending.pop()!;neighbors(project,id).forEach(t=>{if(chosen.has(t.id)&&!reached.has(t.id)){reached.add(t.id);pending.push(t.id);}});}
-  if(reached.size!==chosen.size)throw new Error('Las áreas deben estar conectadas por aristas para formar una sola pieza.');
+  if(project.version<6&&reached.size!==chosen.size)throw new Error('Las áreas deben estar conectadas por aristas para formar una sola pieza.');
+  if(project.version>=5){const polys=union(selected.flatMap(t=>polygonsOf(project,t)));if(project.version<6&&polys.length!==1)throw new Error('Las áreas deben formar una pieza conectada.');const p=structuredClone(project);p.territories=p.territories.filter(t=>t.id===keepId||!chosen.has(t.id));const merged=p.territories.find(t=>t.id===keepId)!;delete merged.holes;delete merged.components;Object.assign(merged,addMultiPolygon(p,polys),{label:multiLabel(polys)});normalizeTopology(p);cleanGroups(p);if(!validGeometry(p))throw new Error('La unión no conserva el terreno.');return p;}
   const directed=new Map<string,[string,string]>();
   for(const t of selected)t.vertices.forEach((a,i)=>{const b=t.vertices[(i+1)%t.vertices.length],key=edgeKey(a,b);if(directed.has(key))directed.delete(key);else directed.set(key,[a,b]);});
   const remaining=[...directed.values()],outgoing=new Map<string,string>();
