@@ -1,4 +1,4 @@
-# Atlas · Editor territorial · Versión 6.1
+# Atlas · Editor territorial · Versión 7.0
 
 Editor local con React, TypeScript y SVG para crear mapas imprimibles con fronteras compartidas, agua y tierra sin región. No contiene mecánicas de juego.
 
@@ -27,7 +27,29 @@ npm run build    # TypeScript + producción en dist/
 npm run preview  # Servir la compilación de producción
 ```
 
-## Tierra, regiones y encuadre (v6.1)
+## Dibujar terreno con pinceles (v7.0)
+
+**Geografía** abre el dibujo actual; **Generar mapa → Dibujar terreno** inicia un borrador vacío con las dimensiones elegidas. Ya no se proponen continentes o islas al azar. Un navegador sin proyecto guardado comienza con agua; el modo rectangular clásico sigue disponible de forma explícita. Los proyectos existentes no se regeneran al actualizar.
+
+La paleta está encima del lienzo, sin panel lateral de propuestas. Hay tres herramientas:
+
+- **Tierra · contorno**: mantener clic izquierdo y rodear una superficie. Al soltar, el recorrido se cierra al punto inicial y se suma a la tierra existente. Las superficies que se tocan se unen; pintar sobre agua la rellena. También elimina montañas dentro del área pintada.
+- **Agua · pincel**: mantener clic y trazar con el grosor elegido. El trazo recorta tierra y montañas. Si cruza una masa de lado a lado, la separa; un anillo cerrado conserva una isla en el centro. Un toque crea un pequeño lago. Los extremos son redondeados.
+- **Montañas · pincel**: mismo gesto y grosor que agua, con textura vectorial. Solo pinta sobre tierra. La masa terrestre continúa siendo una sola, aunque la superficie apta para territorios pueda quedar dividida. Las montañas no tienen territorios ni asignación regional encima.
+
+El **Grosor** se expresa como porcentaje del lado menor del encuadre. Se aproxima con segmentos vectoriales; no son imágenes superpuestas. En agua/montañas, si el trazo termina cerca de su inicio, se conecta para cerrar el anillo. La tierra siempre cierra su contorno al soltar. **Deshacer trazo / Rehacer trazo** conservan hasta 30 cambios del borrador; Ctrl+Z / Ctrl+Mayús+Z funcionan fuera de campos. Escape cancela un trazo activo; el siguiente Escape cierra el borrador. **Vaciar dibujo** también puede deshacerse.
+
+**Aplicar solo geografía** crea áreas de tierra sin región, una por zona apta conectada. Permite guardar y seguir diseñando antes de crear regiones, incluidos mapas de solo agua o de tierra enteramente montañosa. **Continuar a territorios** permite elegir cantidad por masa y creación opcional de región. El mínimo depende de las zonas aptas que separan las montañas; el límite total sigue siendo 120. **Previsualizar territorios → Aplicar mapa** respeta agua y montañas. La irregularidad y el detalle se aplican a las fronteras internas, manteniendo las costas.
+
+La generación reconstruye las divisiones y regiones actuales **solo al aplicar**, en una operación reversible. Cancelar conserva el proyecto abierto. Los cortes, uniones, nodos, selección por lazo y SVG contemplan huecos interiores. El JSON usa **esquema v5**, que requiere esta versión del editor; la lectura de v1/v2/v3/v4 se conserva. La copia local usa atlas.project.v5 y mantiene las anteriores como respaldo. Máximos: 3 MB, 120 territorios, 80 masas, 120 polígonos montañosos, 12000 vértices totales y 2000 nodos por anillo. Los fragmentos menores de una unidad cuadrada del lienzo se descartan como residuos del pincel; un exceso de detalle se informa conservando el borrador anterior.
+
+Las operaciones de dibujo usan [polygon-clipping](https://github.com/mfogel/polygon-clipping). src/geometry/paint.ts implementa trazos y distribución; polygons.ts concentra operaciones, anillos con huecos, etiquetas, normalización compartida y validación de cobertura. La geometría territorial cubre exactamente tierra menos montañas. Las montañas siguen siendo parte de las masas físicas.
+
+Ejemplo: examples/terreno-pintado-v7.atlas.json y su SVG contienen un continente, un anillo de agua con isla y una cordillera. El JSON se abre desde **Abrir proyecto**.
+
+Comprobación v7: 149 pruebas del motor aprobadas, compilación correcta y nueve comprobaciones del flujo de dibujo en /tests/browser/painting.html. Esta última usa eventos sintéticos y una captura simulada de puntero; se comprobaron adicionalmente arrastres nativos de agua y montañas, vista previa de 32 territorios, aplicar y recuperación exacta del mapa con Deshacer. Las pruebas usaron un puerto separado del proyecto del usuario.
+
+## Tierra, regiones y encuadre (v6.1 — controles anteriores reemplazados por pinceles)
 
 El mapa distingue **encuadre**, **tierra/agua** y **asignación regional**. Una masa terrestre puede continuar hasta los lados del encuadre. Quitarle una región a un área no elimina ni deforma la tierra.
 
@@ -45,7 +67,7 @@ La separación entre una región y el borde puede estar ocupada por agua o tierr
 
 Los archivos mantienen el esquema v4; margin pasa a registrar solo la separación inicial, admite cero y no restringe la geometría. Para abrir tierras que llegan al encuadre se necesita el editor v6.1 o posterior. Los archivos existentes no se regeneran al actualizar.
 
-## Costas e islas: geografía primero (v6.0)
+## Costas e islas: geografía primero (v6.0 — historial de la interfaz anterior)
 
 1. Pulsar **Generar mapa**, elegir **Costas e islas · geografía primero**, configurar tamaño, semilla y división, y pulsar **Definir geografía**. **Rectángulo clásico** conserva la generación anterior.
 2. En **Definir tierra y agua**, elegir cantidad de islas, extensión de tierra, irregularidad de costa y separación inicial del borde. **Otra propuesta** varía la forma usando la misma semilla. Estos controles reemplazan la propuesta, sin modificar el proyecto abierto.

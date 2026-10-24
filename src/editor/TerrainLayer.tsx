@@ -1,0 +1,4 @@
+import type {MapProject} from '../model/types';
+import {shapePath} from '../geometry/topology';
+export function MountainPattern({id}:{id:string}){return <pattern id={id} width="24" height="22" patternUnits="userSpaceOnUse"><rect width="24" height="22" fill="#c6b79b"/><path d="M-3 19 L5 5 L13 19 M9 24 L17 10 L25 24 M3 8 L5 5 L7 8" fill="none" stroke="#806e57" strokeWidth="1.2"/></pattern>;}
+export function TerrainLayer({project:p}:{project:MapProject}){return <><defs><MountainPattern id="atlas-mountains"/></defs>{p.geography?.landforms.map(l=><path key={l.id} data-geography-land={l.id} d={shapePath(p,l)} fill="#cfdbb1" fillRule="evenodd" pointerEvents="none"/>)}{p.geography?.mountains?.map(l=><path key={l.id} data-mountains={l.id} d={shapePath(p,l)} fill="url(#atlas-mountains)" fillRule="evenodd" stroke="#8a7861" strokeWidth=".8" pointerEvents="none"/>)}</>;}

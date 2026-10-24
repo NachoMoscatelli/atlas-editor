@@ -1,8 +1,9 @@
+import {rings,validPaintCoverage} from './polygons';
 import type { MapProject, Point } from '../model/types';
 export const edgeKey = (a: string, b: string) => [a,b].sort().join(':');
 export function edges(p: MapProject) {
   const result = new Map<string, [string,string]>();
-  p.territories.forEach(t => t.vertices.forEach((a,i) => { const b=t.vertices[(i+1)%t.vertices.length]; result.set(edgeKey(a,b),[a,b]); }));
+  p.territories.forEach(t => rings(t).forEach(r=>r.forEach((a,i) => { const b=r[(i+1)%r.length]; result.set(edgeKey(a,b),[a,b]); })));
   return [...result.values()];
 }
 export function area(points: Point[]) { return points.reduce((sum,a,i)=> { const b=points[(i+1)%points.length]; return sum+a.x*b.y-b.x*a.y; },0)/2; }
@@ -13,6 +14,7 @@ function intersects(a:Point,b:Point,c:Point,d:Point) {
 }
 export function validGeometry(p:MapProject) {
   if(Object.values(p.vertices).some(v=>!Number.isFinite(v.x)||!Number.isFinite(v.y)||v.x<0||v.y<0||v.x>p.width||v.y>p.height)) return false;
+  if(p.version===5)return validPaintCoverage(p);
   if(p.territories.some(t=>area(t.vertices.map(id=>p.vertices[id]))<1)) return false;
   const es=edges(p);
   for(let i=0;i<es.length;i++) for(let j=i+1;j<es.length;j++) {
@@ -52,3 +54,5 @@ export function distanceToSegment(p:Point,a:Point,b:Point) {
   return Math.hypot(p.x-a.x-t*(b.x-a.x),p.y-a.y-t*(b.y-a.y));
 }
 export function pathFor(p:MapProject,ids:string[]) {return ids.map((id,i)=>`${i?'L':'M'}${p.vertices[id].x},${p.vertices[id].y}`).join(' ')+' Z';}
+
+export function shapePath(p:MapProject,shape:import('../model/types').Ringed){return rings(shape).map(r=>pathFor(p,r)).join(' ');}

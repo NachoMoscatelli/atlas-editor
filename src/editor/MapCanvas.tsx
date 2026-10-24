@@ -1,8 +1,10 @@
+import {TerrainLayer} from './TerrainLayer';
+import {rings} from '../geometry/polygons';
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import type { MapProject, Point } from '../model/types';
 import { printSizeLabel } from '../model/print';
-import { pathFor, validGeometry } from '../geometry/topology';
+import { shapePath, validGeometry } from '../geometry/topology';
 import { displayColor,regionCount } from '../model/groups';
 import { mapBorders,groupLabels } from '../geometry/presentation';
 import { nearestBoundary } from '../geometry/areas';
@@ -67,7 +69,7 @@ export function MapCanvas({project,selected,onSelect,onCommit,tool,labels,zoom,o
     if(tool==='vertices'&&!vertex)return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const t=project.territories.find(t=>t.id===id)!;
-    drag.current={start:point(e),base:project,territoryId:id,ids:vertex?[vertex]:tool==='select'?t.vertices:[],labelId:tool==='labels'?id:undefined,last:project};
+    drag.current={start:point(e),base:project,territoryId:id,ids:vertex?[vertex]:tool==='select'?rings(t).flat():[],labelId:tool==='labels'?id:undefined,last:project};
   }
   function move(e:PointerEvent) {
     if(lasso.current){appendLasso(e);return;}
@@ -85,14 +87,15 @@ export function MapCanvas({project,selected,onSelect,onCommit,tool,labels,zoom,o
     <h2>{project.title||'Mapa sin título'}</h2><p className="paper-subtitle">Un territorio, infinitas posibilidades.</p>
     </>}<svg ref={svg} viewBox={areasOnly?`0 0 ${p.width} ${p.height}`:`-8 -8 ${p.width+16} ${p.height+16}`} role="group" aria-label="Mapa territorial editable" style={{cursor:tool==='lasso'?'crosshair':undefined}} onContextMenu={e=>e.preventDefault()} onKeyDownCapture={e=>{if(readOnly){e.preventDefault();e.stopPropagation();}}} onPointerDownCapture={beginLasso} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>lasso.current?cancelLasso():end()} onLostPointerCapture={()=>lasso.current?cancelLasso():end()} onPointerDown={e=>{if(readOnly||e.button!==0)return;tool==='divide'?cut(e):onSelect(null);}}>
       {p.geography&&<rect data-ocean="true" width={p.width} height={p.height} fill={p.geography.waterColor}/>}
-      {p.territories.map(t=><path key={t.id} data-territory={t.id} data-surface={t.surface} data-assigned={t.regionId!==null} className={`territory ${selected===t.id?'selected':''} ${mergeTarget===t.id?'merge-target':''}`} style={{cursor:tool==='divide'||tool==='lasso'||lassoPoints.length>0?'crosshair':tool==='multi'?'pointer':undefined,stroke:'none'}} d={pathFor(p,t.vertices)} fill={displayColor(p,t)} onPointerDown={e=>begin(e,t.id)}><title>{t.name} · {t.surface==='water'?'Agua':'Tierra'} · {t.regionId?'Región asignada':'Sin región'}</title></path>)}
+      {p.version===5&&<TerrainLayer project={p}/>}
+      {p.territories.map(t=><path key={t.id} data-territory={t.id} data-surface={t.surface} data-assigned={t.regionId!==null} className={`territory ${selected===t.id?'selected':''} ${mergeTarget===t.id?'merge-target':''}`} style={{cursor:tool==='divide'||tool==='lasso'||lassoPoints.length>0?'crosshair':tool==='multi'?'pointer':undefined,stroke:'none'}} d={shapePath(p,t)} fillRule="evenodd" fill={displayColor(p,t)} onPointerDown={e=>begin(e,t.id)}><title>{t.name} · {t.surface==='water'?'Agua':'Tierra'} · {t.regionId?'Región asignada':'Sin región'}</title></path>)}
       {mapBorders(p).map(e=><line key={e.a+':'+e.b} x1={p.vertices[e.a].x} y1={p.vertices[e.a].y} x2={p.vertices[e.b].x} y2={p.vertices[e.b].y} className={e.internal?'group-border':'map-border'} pointerEvents="none"/>)}
       <path data-selection-outline="true" d={selectionPath(p,selectedIds)} className="selection-outline" pointerEvents="none"/>
-      {p.territories.filter(t=>mergeTarget===t.id).map(t=><path key={'outline-'+t.id} d={pathFor(p,t.vertices)} className="merge-outline" pointerEvents="none"/>)}
+      {p.territories.filter(t=>mergeTarget===t.id).map(t=><path key={'outline-'+t.id} d={shapePath(p,t)} fillRule="evenodd" className="merge-outline" pointerEvents="none"/>)}
       {labels&&groupLabels(p).map(g=><text key={'group-'+g.id} x={g.x} y={g.y} className="group-label" pointerEvents="none">{g.name}</text>)}
       {labels&&p.territories.map(t=><text key={t.id} x={t.label.x} y={t.label.y} className="map-label" style={{pointerEvents:tool==='labels'?'auto':'none',cursor:tool==='labels'?'move':undefined}} onPointerDown={e=>begin(e,t.id)}>{t.name}</text>)}
-      {tool==='vertices'&&selected&&p.territories.find(t=>t.id===selected)?.vertices.map((id,i,ids)=>{const b=ids[(i+1)%ids.length],A=p.vertices[id],B=p.vertices[b];return <g key={`add-${id}`} className="add-node" role="button" tabIndex={0} aria-label={`Agregar nodo en arista ${i+1}`} onPointerDown={e=>{e.stopPropagation();onSplit(id,b);}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSplit(id,b);}}}><circle cx={(A.x+B.x)/2} cy={(A.y+B.y)/2} r="7"/><text x={(A.x+B.x)/2} y={(A.y+B.y)/2}>+</text><title>Agregar un nodo compartido en este tramo</title></g>;})}
-      {tool==='vertices'&&selected&&p.territories.find(t=>t.id===selected)?.vertices.map(id=><circle key={id} data-vertex={id} cx={p.vertices[id].x} cy={p.vertices[id].y} r="5" className={`vertex ${id===selectedNode?'chosen':''}`} onPointerDown={e=>begin(e,selected,id)}/>)}
+      {tool==='vertices'&&selected&&p.territories.find(t=>t.id===selected)&&rings(p.territories.find(t=>t.id===selected)!).flatMap(ids=>ids.map((id,i)=>{const b=ids[(i+1)%ids.length],A=p.vertices[id],B=p.vertices[b];return <g key={`add-${id}`} className="add-node" role="button" tabIndex={0} aria-label={`Agregar nodo en arista ${i+1}`} onPointerDown={e=>{e.stopPropagation();onSplit(id,b);}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSplit(id,b);}}}><circle cx={(A.x+B.x)/2} cy={(A.y+B.y)/2} r="7"/><text x={(A.x+B.x)/2} y={(A.y+B.y)/2}>+</text><title>Agregar un nodo compartido en este tramo</title></g>;}))}
+      {tool==='vertices'&&selected&&p.territories.find(t=>t.id===selected)&&rings(p.territories.find(t=>t.id===selected)!).flat().map(id=><circle key={id} data-vertex={id} cx={p.vertices[id].x} cy={p.vertices[id].y} r="5" className={`vertex ${id===selectedNode?'chosen':''}`} onPointerDown={e=>begin(e,selected,id)}/>)}
       {cutStart&&cutHover&&<g className="cut-preview" pointerEvents="none"><line x1={cutStart.x} y1={cutStart.y} x2={cutHover.x} y2={cutHover.y}/><circle cx={cutStart.x} cy={cutStart.y} r="5"/></g>}
       {lassoPoints.length>0&&<path data-lasso-preview="true" className="lasso-preview" d={lassoPoints.map((p,i)=>`${i?'L':'M'}${p.x},${p.y}`).join(' ')+' Z'} fillRule="evenodd" vectorEffect="non-scaling-stroke" pointerEvents="none"/>}
     </svg>

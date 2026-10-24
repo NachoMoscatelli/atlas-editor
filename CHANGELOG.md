@@ -1,5 +1,16 @@
 # Historial de versiones
 
+## 0.7.0 — Pinceles de geografía
+
+- Sustituye las propuestas aleatorias por una paleta sobre el lienzo.
+- Tierra con contorno cerrado; agua y montañas con grosor y extremos redondeados.
+- Unión de tierra, lagos, canales, anillos de agua e islas interiores reales.
+- Montañas vectoriales que excluyen territorios sin separar masas físicas.
+- Historial del dibujo, aplicar solo geografía y distribución con vista previa.
+- Esquema v5 con huecos, validación de tierra menos montañas, compatibilidad de lectura.
+- Selección, nodos, cortes y uniones compatibles con los huecos del nuevo formato.
+- SVG con textura y huecos; ejemplo guardable; 149 pruebas y 9 comprobaciones de interfaz.
+
 ## 0.6.1 — Tierra continua y contexto sin región
 
 - Separa encuadre, geografía y asignación regional: el borde puede cortar tierra.
