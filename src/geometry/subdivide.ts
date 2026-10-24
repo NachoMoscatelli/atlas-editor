@@ -1,5 +1,5 @@
-import {partitionPolygons,replacePaintTerritory} from './paint';
-import {polygonLabel,polygonOf} from './polygons';
+import {partitionTerritory,replacePaintTerritory} from './paint';
+import {multiLabel,polygonsOf,rings,setRings} from './polygons';
 import type { MapProject, Point } from '../model/types';
 import { divideArea, interiorPoint } from './areas';
 import { area, distanceToSegment, edgeKey, edges, validGeometry } from './topology';
@@ -68,7 +68,7 @@ export function organicBoundaries(source:MapProject,ids:string[],options:Subdivi
   const segments=Math.max(1,Math.min(12,Math.round(options.segments??8)));
   if(!Number.isFinite(irregularity)||!Number.isFinite(segments))throw new Error('Los controles de división deben ser números válidos.');
   const selected=new Set(ids),uses=new Map<string,number>();
-  source.territories.filter(t=>selected.has(t.id)).forEach(t=>t.vertices.forEach((a,i)=>{const key=edgeKey(a,t.vertices[(i+1)%t.vertices.length]);uses.set(key,(uses.get(key)??0)+1);}));
+  source.territories.filter(t=>selected.has(t.id)).forEach(t=>rings(t).forEach(r=>r.forEach((a,i)=>{const key=edgeKey(a,r[(i+1)%r.length]);uses.set(key,(uses.get(key)??0)+1);})) );
   const allEdges=edges(source),chains=new Map<string,string[]>(),p=structuredClone(source);
   const displaced:{id:string;base:Point;dx:number;dy:number}[]=[];
   let serial=0;
@@ -87,19 +87,19 @@ export function organicBoundaries(source:MapProject,ids:string[],options:Subdivi
     }
     chains.set(edgeKey(a,b),a<b?chain:[...chain].reverse());
   });
-  p.territories.forEach(t=>{t.vertices=t.vertices.flatMap((a,i)=>{const b=t.vertices[(i+1)%t.vertices.length],chain=chains.get(edgeKey(a,b));return chain?[a,...(a<b?chain:[...chain].reverse())]:[a];});});
-  if(Object.keys(p.vertices).length>(p.version===5?12000:3000)||p.territories.some(t=>t.vertices.length>(p.version===5?2000:500)))throw new Error('Demasiadas aristas para esta división. Reducí el detalle o la cantidad de partes.');
+  p.territories.forEach(t=>setRings(t,rings(t).map(r=>r.flatMap((a,i)=>{const b=r[(i+1)%r.length],chain=chains.get(edgeKey(a,b));return chain?[a,...(a<b?chain:[...chain].reverse())]:[a];}))));
+  if(Object.keys(p.vertices).length>(p.version>=5?12000:3000)||p.territories.some(t=>t.vertices.length>(p.version>=5?2000:500)))throw new Error('Demasiadas aristas para esta división. Reducí el detalle o la cantidad de partes.');
   // Narrow concavities may need a gentler curve. Keep all topology checks active.
   let strength=1;
   while(!validGeometry(p)&&strength>1/64){strength/=2;displaced.forEach(({id,base,dx,dy})=>{p.vertices[id]={x:base.x+dx*strength,y:base.y+dy*strength};});}
   if(!validGeometry(p))return source;
-  p.territories.filter(t=>selected.has(t.id)).forEach(t=>{t.label=p.version===5?polygonLabel(polygonOf(p,t)):interiorPoint(p,t.vertices);});
+  p.territories.filter(t=>selected.has(t.id)).forEach(t=>{t.label=p.version>=5?multiLabel(polygonsOf(p,t)):interiorPoint(p,t.vertices);});
   return p;
 }
 export function subdivideArea(project:MapProject,id:string,count:number,options:SubdivisionOptions={}):{project:MapProject;ids:string[]} {
   const original=project.territories.find(t=>t.id===id);
   if(!original)throw new Error('Seleccioná un área para dividir.');
-  if(project.version===5){if(!Number.isInteger(count)||count<2)throw new Error('Elegí al menos dos partes.');const result=replacePaintTerritory(project,id,partitionPolygons([polygonOf(project,original)],count));return {...result,project:organicBoundaries(result.project,result.ids,options)};}
+  if(project.version>=5){if(!Number.isInteger(count)||count<2)throw new Error('Elegí al menos dos partes.');const components=partitionTerritory(polygonsOf(project,original),count);const result=replacePaintTerritory(project,id,components.map(p=>p[0]),components);return {...result,project:organicBoundaries(result.project,result.ids,options)};}
   if(!Number.isInteger(count)||count<2)throw new Error('Elegí una cantidad entera de al menos dos partes.');
   if(project.territories.length+count-1>120)throw new Error('La división supera el límite de 120 áreas del mapa.');
   if(options.endpoints==='vertices'&&count>original.vertices.length-2)throw new Error(`Con los ${original.vertices.length} vértices actuales se pueden obtener como máximo ${original.vertices.length-2} partes. Agregá vértices o elegí puntos de corte libres.`);

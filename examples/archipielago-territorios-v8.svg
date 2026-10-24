@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="700mm" height="500mm" viewBox="0 0 920 604.285714">
+<title>Isla principal y su islote</title>
+<rect data-ocean="true" width="920" height="604.285714" fill="#b8d7dc"/>
+<defs><pattern id="atlas-mountains" width="24" height="22" patternUnits="userSpaceOnUse"><rect width="24" height="22" fill="#c6b79b"/><path d="M-3 19 L5 5 L13 19 M9 24 L17 10 L25 24 M3 8 L5 5 L7 8" fill="none" stroke="#806e57" stroke-width="1.2"/></pattern></defs>
+<path data-landmass="import-land-0" d="M177.050338,105.75 L419.57862,105.75 L419.57862,498.535714 L177.050338,498.535714 Z" fill-rule="evenodd" fill="#cfdbb1"/>
+<path data-landmass="import-land-1" d="M451.915724,223.585714 L476.168552,223.585714 L476.168552,262.864286 L451.915724,262.864286 Z" fill-rule="evenodd" fill="#cfdbb1"/>
+<path data-landmass="import-land-2" d="M581.264141,236.678571 L742.949662,236.678571 L742.949662,498.535714 L581.264141,498.535714 Z" fill-rule="evenodd" fill="#cfdbb1"/>
+
+<path data-surface="land" data-region="region0" d="M177.050338,105.75 L419.57862,105.75 L419.57862,498.535714 L177.050338,498.535714 Z M451.915724,223.585714 L476.168552,223.585714 L476.168552,262.864286 L451.915724,262.864286 Z" fill-rule="evenodd" fill="#b5cbb0" stroke="none" stroke-width="1.5" stroke-linejoin="round"/>
+<path data-surface="land" data-region="region2" d="M581.264141,236.678571 L742.949662,236.678571 L742.949662,498.535714 L581.264141,498.535714 Z" fill-rule="evenodd" fill="#b1cdd1" stroke="none" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="177.050338" y1="105.75" x2="419.57862" y2="105.75" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="419.57862" y1="105.75" x2="419.57862" y2="498.535714" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="419.57862" y1="498.535714" x2="177.050338" y2="498.535714" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="177.050338" y1="498.535714" x2="177.050338" y2="105.75" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="451.915724" y1="223.585714" x2="476.168552" y2="223.585714" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="476.168552" y1="223.585714" x2="476.168552" y2="262.864286" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="476.168552" y1="262.864286" x2="451.915724" y2="262.864286" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="451.915724" y1="262.864286" x2="451.915724" y2="223.585714" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="581.264141" y1="236.678571" x2="742.949662" y2="236.678571" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="742.949662" y1="236.678571" x2="742.949662" y2="498.535714" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="742.949662" y1="498.535714" x2="581.264141" y2="498.535714" stroke="#3c4c43" stroke-width="1.5"/>
+<line x1="581.264141" y1="498.535714" x2="581.264141" y2="236.678571" stroke="#3c4c43" stroke-width="1.5"/>
+<text x="298.314479" y="126.818638390625" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" font-size="13" fill="#233a33">Región 1</text>
+<text x="662.1069015" y="256.72432992968754" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" font-size="13" fill="#233a33">Región 3</text>
+<text x="298.314479" y="108.818638390625" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="11" fill="#233a33">Isla principal e islote</text>
+<text x="662.1069015" y="238.7243299296875" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="11" fill="#233a33">Territorio 3.1</text>
+</svg>

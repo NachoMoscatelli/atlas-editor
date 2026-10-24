@@ -14,7 +14,7 @@ function intersects(a:Point,b:Point,c:Point,d:Point) {
 }
 export function validGeometry(p:MapProject) {
   if(Object.values(p.vertices).some(v=>!Number.isFinite(v.x)||!Number.isFinite(v.y)||v.x<0||v.y<0||v.x>p.width||v.y>p.height)) return false;
-  if(p.version===5)return validPaintCoverage(p);
+  if(p.version>=5)return validPaintCoverage(p);
   if(p.territories.some(t=>area(t.vertices.map(id=>p.vertices[id]))<1)) return false;
   const es=edges(p);
   for(let i=0;i<es.length;i++) for(let j=i+1;j<es.length;j++) {

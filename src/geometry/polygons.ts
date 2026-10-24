@@ -2,8 +2,9 @@ import clipping from 'polygon-clipping';
 import type {MultiPolygon,Polygon,Pair} from 'polygon-clipping';
 import type {MapProject,Point,Ringed} from '../model/types';
 export type {MultiPolygon,Polygon,Pair};
-export const rings=(shape:Ringed)=>[shape.vertices,...shape.holes??[]];
-export const polygonOf=(p:MapProject,shape:Ringed):Polygon=>rings(shape).map(r=>r.map(id=>[p.vertices[id].x,p.vertices[id].y] as Pair));
+export const rings=(shape:Ringed)=>[shape.vertices,...shape.holes??[],...(shape.components??[]).flatMap(c=>[c.vertices,...c.holes??[]])];
+export const polygonOf=(p:MapProject,shape:Ringed):Polygon=>[shape.vertices,...shape.holes??[]].map(r=>r.map(id=>[p.vertices[id].x,p.vertices[id].y] as Pair));
+export const polygonsOf=(p:MapProject,shape:Ringed):MultiPolygon=>[polygonOf(p,shape),...(shape.components??[]).map(c=>polygonOf(p,c))];
 const ringArea=(r:Pair[])=>r.reduce((s,a,i)=>{const b=r[(i+1)%r.length];return s+a[0]*b[1]-b[0]*a[1];},0)/2;
 export const polygonArea=(p:Polygon)=>Math.abs(ringArea(p[0]))-p.slice(1).reduce((s,r)=>s+Math.abs(ringArea(r)),0);
 export const multiArea=(m:MultiPolygon)=>m.reduce((s,p)=>s+polygonArea(p),0);
@@ -21,7 +22,9 @@ export function polygonLabel(poly:Polygon):Point {
   const ys=poly[0].map(v=>v[1]),min=Math.min(...ys),max=Math.max(...ys);let best:Point={x:poly[0][0][0],y:poly[0][0][1]},score=-1;
   for(let k=0;k<64;k++){const y=min+(max-min)*(k+.5)/64,xs:number[]=[];poly.forEach(r=>r.forEach((a,i)=>{const b=r[(i+1)%r.length];if((a[1]>y)!==(b[1]>y))xs.push(a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]));}));xs.sort((a,b)=>a-b);for(let i=0;i+1<xs.length;i+=2){const width=xs[i+1]-xs[i];if(width>score){score=width;best={x:(xs[i]+xs[i+1])/2,y};}}}return best;
 }
-export function setRings(shape:Ringed,rs:string[][]){shape.vertices=rs[0];if(rs.length>1)shape.holes=rs.slice(1);else delete shape.holes;}
+export function multiLabel(polys:MultiPolygon):Point{return polygonLabel(polys.reduce((best,poly)=>polygonArea(poly)>polygonArea(best)?poly:best));}
+export function setRings(shape:Ringed,rs:string[][]){const shapes=[shape,...shape.components??[]];let index=0;for(const s of shapes){const size=1+(s.holes?.length??0);s.vertices=rs[index];if(size>1)s.holes=rs.slice(index+1,index+size);else delete s.holes;index+=size;}}
+export function addMultiPolygon(p:MapProject,polys:MultiPolygon):Ringed{const sorted=[...polys].sort((a,b)=>polygonArea(b)-polygonArea(a));const first=addPolygon(p,sorted[0]);return {...first,...(sorted.length>1?{components:sorted.slice(1).map(poly=>addPolygon(p,poly))}:{})};}
 export function allShapes(p:MapProject):Ringed[]{return [...p.territories,...p.geography?.landforms??[],...p.geography?.mountains??[]];}
 /** Node every boundary at the same coordinates, including coasts and barriers.
  * Boolean clipping removes collinear points; restore these across incident rings.
@@ -41,11 +44,12 @@ export function addPolygon(p:MapProject,poly:Polygon):Ringed {let n=Object.keys(
 export function validPaintCoverage(p:MapProject):boolean {
   try {
     const g=p.geography;if(!g)return false;
-    const check=(s:Ringed)=>{const poly=polygonOf(p,s);if(poly.some((r,i)=>r.length<3||Math.abs(ringArea(r))<1e-7||(ringArea(r)>0)!==(i===0)))return false;return Math.abs(multiArea(clipping.union([poly]))-polygonArea(poly))<.01;};
+    const check=(s:Ringed)=>{const polys=polygonsOf(p,s);if(polys.some(poly=>poly.some((r,i)=>r.length<3||Math.abs(ringArea(r))<1e-7||(ringArea(r)>0)!==(i===0))))return false;return Math.abs(multiArea(clipping.union(polys))-multiArea(polys))<.01;};
     if(!allShapes(p).every(check))return false;
     const rawLand=g.landforms.map(l=>polygonOf(p,l)),land=union(rawLand),rawMount=(g.mountains??[]).map(l=>polygonOf(p,l)),mount=union(rawMount);
     if(Math.abs(multiArea(rawLand)-multiArea(land))>.02||Math.abs(multiArea(rawMount)-multiArea(mount))>.02||multiArea(difference(mount,land))>.02)return false;
-    const available=difference(land,mount),parts=p.territories.map(t=>polygonOf(p,t)),total=union(parts);
+    if(p.stage==='terrain')return p.territories.length===0&&p.groups.length===0;
+    const available=difference(land,mount),parts=p.territories.flatMap(t=>polygonsOf(p,t)),total=union(parts);
     return Math.abs(multiArea(parts)-multiArea(total))<.02&&multiArea(difference(total,available))+multiArea(difference(available,total))<.03;
   }catch{return false;}
 }

@@ -6,7 +6,7 @@ import { edges, edgeKey, validGeometry } from './topology';
 export function splitEdge(project: MapProject, a: string, b: string): { project: MapProject; vertexId: string } {
   if (!edges(project).some(([c,d]) => edgeKey(a,b) === edgeKey(c,d))) throw new Error('La arista ya no existe.');
   const affected = project.territories.filter(t=>t.vertices.some((id,i)=>edgeKey(id,t.vertices[(i+1)%t.vertices.length])===edgeKey(a,b)));
-  if(Object.keys(project.vertices).length>=(project.version===5?12000:3000)||affected.some(t=>t.vertices.length>=(project.version===5?2000:500))) throw new Error('Se alcanzó el límite de nodos del proyecto.');
+  if(Object.keys(project.vertices).length>=(project.version>=5?12000:3000)||affected.some(t=>t.vertices.length>=(project.version>=5?2000:500))) throw new Error('Se alcanzó el límite de nodos del proyecto.');
   const next=structuredClone(project);
   let index=0; while(Object.hasOwn(next.vertices,`edit${index}`))index++;
   const vertexId=`edit${index}`, A=next.vertices[a], B=next.vertices[b];

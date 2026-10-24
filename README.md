@@ -1,4 +1,4 @@
-# Atlas · Editor territorial · Versión 7.0
+# Atlas · Editor territorial · Versión 8.0
 
 Editor local con React, TypeScript y SVG para crear mapas imprimibles con fronteras compartidas, agua y tierra sin región. No contiene mecánicas de juego.
 
@@ -27,7 +27,35 @@ npm run build    # TypeScript + producción en dist/
 npm run preview  # Servir la compilación de producción
 ```
 
-## Dibujar terreno con pinceles (v7.0)
+## Biblioteca → Terraformación → Territorios (v8.0)
+
+Al entrar se abre **Mis mapas**, con nombre, miniatura, etapa y cantidad de masas/territorios de cada proyecto. **+ Nuevo mapa** permite nombrarlo y elegir dimensiones; **Crear y terraformar** abre un lienzo de agua, sin generar territorios automáticamente. **← Mis mapas** vuelve a la biblioteca. Editar el título del mapa actualiza también su tarjeta.
+
+Los mapas se guardan por separado en **IndexedDB** del mismo navegador y dirección. Se recupera una sola vez el proyecto que estaba en el almacenamiento anterior; ese respaldo no se elimina ni se sobrescribe. Cerrar y volver a abrir la aplicación recupera la biblioteca. El indicador informa si hay escrituras pendientes o si falló el guardado. Descargar JSON sigue siendo la forma de transportar y respaldar un mapa; no hay sincronización entre navegadores o computadoras. **Importar proyecto** en la biblioteca agrega otra entrada, sin reemplazar los mapas existentes.
+
+### 1. Terraformar y organizar masas
+
+Los pinceles forman las masas conectadas según la tierra resultante. **Seleccionar / mover** permite elegir una masa con clic y varias con Mayús + clic o las casillas del administrador derecho. **Agrupar masas** crea un conjunto con nombre; las piezas permanecen separadas. Al seleccionar un miembro se selecciona el conjunto completo. **Seleccionar piezas individuales** permite trabajar con solo algunos miembros; **Desagrupar masas** quita su agrupación.
+
+Arrastrar mueve la selección completa, manteniendo las distancias y llevando las montañas correspondientes. Se encaja el conjunto dentro del mapa y se rechazan superposiciones o contactos que lo peguen a otra masa. Para unir tierra físicamente, usar el pincel Tierra. **Borrar masas seleccionadas** quita también las montañas de esas masas; se puede deshacer. Los cortes de agua heredan el grupo de la masa original; una unión pintada conserva el grupo de la masa con mayor superposición.
+
+**Importar masas** acepta un proyecto Atlas JSON o GeoJSON de polígonos, multipolígonos y colecciones. El conjunto importado llega agrupado con el nombre del archivo; se ajusta su escala común para colocarlo en una zona libre. Para cargar un archipiélago real, como las Islas Malvinas, usar un archivo GeoJSON con sus contornos. El editor no incluye un catálogo de costas reales. GeoJSON se interpreta en longitud/latitud según [RFC 7946](https://www.rfc-editor.org/rfc/rfc7946.html), con una vista local aproximada y ajuste al lienzo; no es una proyección para mediciones. No se admiten geometrías que crucen el antimeridiano, líneas/puntos, más de 9000 posiciones o archivos mayores de 3 MB. La importación SVG sigue pendiente.
+
+**Guardar terraformación** guarda masas, conjuntos, tierra/agua y montañas, sin crear territorios. Se puede volver a la biblioteca y continuar más adelante. Los conjuntos terrestres y las regiones son estructuras independientes.
+
+### 2. Crear territorios sobre la tierra existente
+
+Desde el mapa, pulsar **Crear territorios**, o **Continuar a territorios** dentro de la terraformación. Elegir cantidad por masa, previsualizar y aplicar. El agua y las montañas siguen excluidas. Las masas y sus grupos se conservan al generar la distribución. Volver a terraformar y aplicar reconstruye la distribución anterior; para editar territorios existentes sin reemplazarlos, usar sus herramientas del lienzo.
+
+Para que una isla y un islote sean **un solo territorio**, seleccionar sus áreas con Mayús y pulsar **Unir en una sola área**. En los mapas nuevos, el resultado puede tener piezas separadas por agua: comparte identidad, nombre, color, selección y región, sin rellenar el mar. La selección por lazo, los nodos, el movimiento, la división, el guardado y el SVG contemplan todas las piezas. Al subdividir un territorio con más componentes que partes solicitadas, los islotes se asignan a las piezas principales más próximas.
+
+El esquema de archivo es **v6**, con stage (terrain/territories), geography.landGroups, groupId por masa y components por territorio. Se mantiene lectura de v1–v5. Las masas físicas tienen contornos propios; agruparlas nunca las convierte en una sola superficie. La biblioteca guarda proyectos completos, sin guardar una miniatura rasterizada: las vistas se dibujan desde su geometría.
+
+**Ejemplos:** examples/archipielago-ejemplo.geojson contiene geometría ficticia para probar la importación; no representa las Islas Malvinas. examples/archipielago-terraformacion-v8.atlas.json guarda solo masas agrupadas. examples/archipielago-territorios-v8.atlas.json y su SVG contienen tres masas y dos territorios, uno compuesto por isla e islote.
+
+Verificación v8.0: **162 pruebas**, compilación y prueba del flujo en navegador: recuperación del mapa anterior, creación vacía, importación agrupada, arrastre conjunto, borrar/deshacer, guardar terraformación sin territorios, volver/recargar biblioteca, generar áreas, unir isla e islote y recuperar ese territorio al recargar. Se probó en un puerto separado del proyecto habitual del usuario. Las pruebas de IndexedDB usan una base simulada aislada.
+
+## Dibujar terreno con pinceles (v7.0 — nombres y flujo de la interfaz anterior)
 
 **Geografía** abre el dibujo actual; **Generar mapa → Dibujar terreno** inicia un borrador vacío con las dimensiones elegidas. Ya no se proponen continentes o islas al azar. Un navegador sin proyecto guardado comienza con agua; el modo rectangular clásico sigue disponible de forma explícita. Los proyectos existentes no se regeneran al actualizar.
 

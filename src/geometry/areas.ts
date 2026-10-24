@@ -1,4 +1,4 @@
-import {addPolygon,normalizeTopology,polygonLabel,polygonOf,rings,union} from './polygons';
+import {addMultiPolygon,normalizeTopology,multiLabel,polygonsOf,rings,union} from './polygons';
 import {cutPaintTerritory} from './paint';
 import type { MapProject, Point, Territory } from '../model/types';
 import { area, edgeKey, validGeometry } from './topology';
@@ -43,7 +43,7 @@ function assertResult(p:MapProject) {
   if(!validGeometry(p))throw new Error('La línea debe quedar dentro del área y producir dos polígonos sin cruces.');
 }
 export function divideArea(project:MapProject,id:string,start:Point,end:Point):{project:MapProject;newId:string} {
-  if(project.version===5)return cutPaintTerritory(project,id,start,end);
+  if(project.version>=5)return cutPaintTerritory(project,id,start,end);
   const source=project.territories.find(t=>t.id===id);
   if(!source)throw new Error('Seleccioná un área para dividir.');
   // Legacy individual regions store their metadata on their sole territory.
@@ -73,8 +73,8 @@ export function mergeSelection(project:MapProject,ids:string[]):MapProject {
   if(selected.length!==chosen.size)throw new Error('La selección contiene áreas que ya no existen.');
   const reached=new Set([keepId]),pending=[keepId];
   while(pending.length){const id=pending.pop()!;neighbors(project,id).forEach(t=>{if(chosen.has(t.id)&&!reached.has(t.id)){reached.add(t.id);pending.push(t.id);}});}
-  if(reached.size!==chosen.size)throw new Error('Las áreas deben estar conectadas por aristas para formar una sola pieza.');
-  if(project.version===5){const polys=union(selected.map(t=>polygonOf(project,t)));if(polys.length!==1)throw new Error('Las áreas deben formar una pieza conectada.');const p=structuredClone(project);p.territories=p.territories.filter(t=>t.id===keepId||!chosen.has(t.id));const merged=p.territories.find(t=>t.id===keepId)!;delete merged.holes;Object.assign(merged,addPolygon(p,polys[0]),{label:polygonLabel(polys[0])});normalizeTopology(p);cleanGroups(p);if(!validGeometry(p))throw new Error('La unión no conserva el terreno.');return p;}
+  if(project.version<6&&reached.size!==chosen.size)throw new Error('Las áreas deben estar conectadas por aristas para formar una sola pieza.');
+  if(project.version>=5){const polys=union(selected.flatMap(t=>polygonsOf(project,t)));if(project.version<6&&polys.length!==1)throw new Error('Las áreas deben formar una pieza conectada.');const p=structuredClone(project);p.territories=p.territories.filter(t=>t.id===keepId||!chosen.has(t.id));const merged=p.territories.find(t=>t.id===keepId)!;delete merged.holes;delete merged.components;Object.assign(merged,addMultiPolygon(p,polys),{label:multiLabel(polys)});normalizeTopology(p);cleanGroups(p);if(!validGeometry(p))throw new Error('La unión no conserva el terreno.');return p;}
   const directed=new Map<string,[string,string]>();
   for(const t of selected)t.vertices.forEach((a,i)=>{const b=t.vertices[(i+1)%t.vertices.length],key=edgeKey(a,b);if(directed.has(key))directed.delete(key);else directed.set(key,[a,b]);});
   const remaining=[...directed.values()],outgoing=new Map<string,string>();

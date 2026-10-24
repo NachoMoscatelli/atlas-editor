@@ -1,5 +1,16 @@
 # Historial de versiones
 
+## 0.8.0 — Biblioteca, conjuntos terrestres y territorios con islas
+
+- Entrada por biblioteca con nombres, miniaturas, nuevo mapa e importación.
+- Guardado independiente en IndexedDB y recuperación única del proyecto anterior.
+- Nuevo mapa comienza en terraformación; se guarda sin generar territorios.
+- Selección múltiple, grupos con nombre, arrastre y borrado de masas con Deshacer.
+- Importación GeoJSON/Atlas como conjunto terrestre, con escala y colocación comunes.
+- Esquema v6 con etapas, conjuntos terrestres y territorios de varias piezas.
+- Unión de isla e islote sin rellenar agua; selección, edición y SVG compatibles.
+- Ejemplos ficticios de archipiélago y 162 pruebas, más comprobación en navegador.
+
 ## 0.7.0 — Pinceles de geografía
 
 - Sustituye las propuestas aleatorias por una paleta sobre el lienzo.

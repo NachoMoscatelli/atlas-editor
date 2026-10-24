@@ -1,4 +1,4 @@
-import {contains,polygonOf,rings} from './polygons';
+import {contains,polygonsOf,rings} from './polygons';
 import type { MapProject, Point } from '../model/types';
 import { edgeKey, distanceToSegment } from './topology';
 
@@ -30,8 +30,8 @@ export function areasInLasso(p:MapProject,points:readonly Point[]):string[] {
   if(closed)segments.push([points.at(-1)!,points[0]]);
   return p.territories.filter(t=>{
     const polygon=t.vertices.map(id=>p.vertices[id]),all=rings(t).map(r=>r.map(id=>p.vertices[id]));
-    if(points.some(q=>t.holes?.length?contains(polygonOf(p,t),q):pointInPolygon(q,polygon)))return true;
-    if(closed&&polygon.some(q=>pointInPolygon(q,points)))return true;
+    if(points.some(q=>t.holes?.length||t.components?.length?polygonsOf(p,t).some(poly=>contains(poly,q)):pointInPolygon(q,polygon)))return true;
+    if(closed&&all.some(r=>r.some(q=>pointInPolygon(q,points))))return true;
     return all.some(r=>r.some((a,i)=>segments.some(([c,d])=>segmentsTouch(a,r[(i+1)%r.length],c,d))));
   }).map(t=>t.id);
 }
