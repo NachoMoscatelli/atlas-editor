@@ -1,0 +1,31 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>Comprobación del lazo</title><style>body{font:14px system-ui;margin:18px}button{padding:10px}iframe{display:block;width:100%;height:800px;border:1px solid #ccc}pre{white-space:pre-wrap}</style><button id="run">Ejecutar comprobación del lazo</button><pre id="report">Listo. Prueba de eventos; captura de puntero simulada para eventos sintéticos.</pre><iframe id="app" src="/"></iframe><script type="module">
+const report=document.querySelector('#report'),frame=document.querySelector('iframe');
+document.querySelector('#run').onclick=async()=>{
+ const w=frame.contentWindow,d=w.document,svg=d.querySelector('svg'),paths=[...d.querySelectorAll('[data-territory]')];
+ if(!svg||!paths.length){report.textContent='ERROR: editor no cargado';return;}
+ if(paths.length<3){report.textContent='Usar un mapa con al menos tres áreas para esta comprobación.';return;}
+ const messages=[],check=(v,s)=>{if(!v)throw Error(s);messages.push('OK · '+s);report.textContent=messages.join('\n');};
+ const tick=()=>new Promise(r=>w.setTimeout(r,25));
+ const capture=new Set(),original={set:svg.setPointerCapture,has:svg.hasPointerCapture,release:svg.releasePointerCapture};
+ svg.setPointerCapture=id=>capture.add(id);svg.hasPointerCapture=id=>capture.has(id);svg.releasePointerCapture=id=>capture.delete(id);
+ const box=svg.viewBox.baseVal,width=box.width-16,height=box.height-16;
+ const count=()=>parseInt(d.querySelector('.group-panel output').textContent);
+ async function event(type,x,y,button=2,buttons=2,target=svg){const at=new w.DOMPoint(x,y).matrixTransform(svg.getScreenCTM());target.dispatchEvent(new w.PointerEvent(type,{bubbles:true,cancelable:true,pointerId:77,pointerType:'mouse',isPrimary:true,button,buttons,clientX:at.x,clientY:at.y}));await tick();}
+ async function rectangle(y0=0,y1=height,button=2){await event('pointerdown',-1,y0-1,button,button===2?2:1);await event('pointermove',width+1,y0-1,button,button===2?2:1);await event('pointermove',width+1,y1+1,button,button===2?2:1);await event('pointermove',-1,y1+1,button,button===2?2:1);}
+ const button=text=>[...d.querySelectorAll('button')].find(b=>b.textContent.trim()===text);
+ try {
+  await event('pointerdown',50,50,0,1,paths[0]);await event('pointerup',50,50,0,0);check(count()===1,'Selección inicial individual');
+  await rectangle();check(svg.querySelector('[data-lasso-preview]').getAttribute('d').trim().endsWith('Z'),'El recorrido se cierra desde el último punto hasta el inicial');
+  await event('pointerup',-1,height+1,2,0);check(count()===paths.length,'El lazo derecho agrega todas las áreas encerradas');check(!svg.querySelector('[data-lasso-preview]'),'El trazo desaparece al soltar');
+  const menu=new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true});svg.dispatchEvent(menu);check(menu.defaultPrevented,'No se abre el menú contextual del mapa');
+  button('Limpiar selección').click();await tick();
+  await event('pointerdown',50,50,0,1,paths[0]);await event('pointerup',50,50,0,0);await rectangle(height*.55,height);await event('pointerup',-1,height+1,2,0);check(count()>1&&count()<paths.length,'El segundo lazo suma una selección parcial');
+  const previous=count();await rectangle();w.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await tick();check(count()===previous&&!svg.querySelector('[data-lasso-preview]'),'Escape cancela sin perder la selección');
+  await rectangle();await event('pointercancel',0,0,2,0);check(count()===previous,'Cancelar el puntero conserva la selección');
+  button('Limpiar selección').click();await tick();const lassoButton=[...d.querySelectorAll('button')].find(b=>b.textContent.includes('Lazo'));lassoButton.click();await tick();await rectangle(0,height,0);await event('pointerup',-1,height+1,0,0);check(count()===paths.length,'La herramienta Lazo también funciona con botón izquierdo');check(lassoButton.getAttribute('aria-pressed')==='true','La herramienta Lazo sigue activa para dibujar otro recorrido');
+  button('Limpiar selección').click();await tick();await event('pointerdown',-1,5,2,2);await event('pointermove',width+1,5,2,2);await event('pointerup',width+1,5,2,0);check(count()>0,'Una pasada recta selecciona las áreas que toca sin encerrar centros');
+  report.textContent+='\nPASS: '+messages.length+' comprobaciones. Captura simulada; sin cambios de geometría.';
+ } catch(error){report.textContent+='\nFAIL: '+error.message;} finally {svg.setPointerCapture=original.set;svg.hasPointerCapture=original.has;svg.releasePointerCapture=original.release;}
+};
+</script></html>
+

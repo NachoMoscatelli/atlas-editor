@@ -1,0 +1,86 @@
+import { useEffect, useRef, useState } from 'react';
+import { SubdivisionPanel } from './editor/SubdivisionPanel';
+import type { SubdivisionResult } from './editor/SubdivisionPanel';
+import { GenerationDialog } from './editor/GenerationDialog';
+import { DEFAULT_BOARD_SIZE,printSizeLabel } from './model/print';
+import { EditorSection } from './editor/EditorSection';
+import { RegionsPanel } from './editor/RegionsPanel';
+import { GroupPanel } from './editor/GroupPanel';
+import { cleanGroups,groupFor,regionCount as countRegions,toggleSelection } from './model/groups';
+import { generate } from './geometry/generate';
+import { divideArea, mergeAreas, mergeSelection, neighbors } from './geometry/areas';
+import { splitEdge, removeVertex } from './geometry/edit';
+import type { GenerationOptions, MapProject, Territory, Point } from './model/types';
+import { download, loadLocal, parseProject, saveLocal, serializeProject } from './io/project';
+import { exportSvg } from './io/svg';
+import { useProject } from './editor/useProject';
+import { MapCanvas } from './editor/MapCanvas';
+import type { Tool } from './editor/MapCanvas';
+const defaults:GenerationOptions={count:32,seed:'horizonte-01',irregularity:.7,segments:2,...DEFAULT_BOARD_SIZE};
+export function App() {
+  const {project,commit,undo,redo,canUndo,canRedo}=useProject(()=>loadLocal()??generate(defaults));
+  const [selected,setSelected]=useState<string|null>(null),[tool,setTool]=useState<Tool>('select');
+  const [areasOnly,setAreasOnly]=useState(false);
+  const [labels,setLabels]=useState(true),[zoom,setZoom]=useState(100),[status,setStatus]=useState('Listo para crear. Seleccioná un territorio para comenzar.');
+  const [saved,setSaved]=useState(true),[regenerate,setRegenerate]=useState(false);
+  const [selectedNode,setSelectedNode]=useState<string|null>(null);
+  const [mergeTarget,setMergeTarget]=useState<string|null>(null);
+  const adjacent=neighbors(project,selected??'');
+  const mergeNeighbor=adjacent.find(t=>t.id===mergeTarget);
+  const [selection,setSelection]=useState<string[]>([]);
+  const [leftSection,setLeftSection]=useState<string|null>('selection');
+  const [regionsOpen,setRegionsOpen]=useState(false),[activeRegion,setActiveRegion]=useState<string|null>(null);
+  const toggleSection=(id:string)=>setLeftSection(current=>current===id?null:id);
+  useEffect(()=>{if(tool==='divide')setLeftSection('manual');else if(tool==='multi'||tool==='lasso')setLeftSection('selection');},[tool]);
+  function commitGroups(next:MapProject){commit(next);const created=next.groups.find(g=>!project.groups.some(old=>old.id===g.id));if(created){setActiveRegion(created.id);setRegionsOpen(true);}}
+  const selectedIds=selection.filter(id=>project.territories.some(t=>t.id===id));
+  const regionCount=countRegions(project);
+  const freeCount=project.territories.filter(t=>t.regionId===null).length;
+  const [subdivision,setSubdivision]=useState<{base:MapProject;areaId:string;result:SubdivisionResult}|null>(null);
+  useEffect(()=>setSubdivision(null),[project,selected,selection]);
+  const activeSubdivision=subdivision?.base===project&&subdivision.areaId===selected?subdivision.result:null;
+  const file=useRef<HTMLInputElement>(null);
+  const territory=project.territories.find(t=>t.id===selected);
+  useEffect(()=>{try{saveLocal(project);setSaved(true);}catch{setSaved(false);}},[project]);
+  useEffect(()=>{const handler=(e:KeyboardEvent)=>{if(regenerate)return;if((e.target as HTMLElement).matches('input,textarea,select'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey){redo();setStatus('Edición rehecha.');}else{undo();setStatus('Última edición deshecha.');}}if(e.key==='Escape'){setSubdivision(null);setTool('select');setSelected(null);setSelection([]);setMergeTarget(null);setRegenerate(false);}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);},[undo,redo,regenerate]);
+  function updateTerritory(patch:Partial<Pick<Territory,'name'|'surface'|'regionId'>>) {commit(cleanGroups({...project,territories:project.territories.map(t=>t.id===selected?{...t,...patch}:t),groups:[...project.groups]}));}
+  function chooseMany(ids:string[]){setLeftSection('selection');setSelection(ids);setSelected(ids.at(-1)??null);setSelectedNode(null);setMergeTarget(null);setTool('multi');}
+  function selectLasso(ids:string[]){setLeftSection('selection');setSelection(ids);setSelected(ids.at(-1)??null);setSelectedNode(null);setMergeTarget(null);setTool(current=>current==='lasso'?'lasso':'multi');}
+  function toggleArea(id:string){chooseMany(toggleSelection(selectedIds,id));}
+  function selectArea(id:string|null){if(id)setLeftSection(current=>['subdivide','manual'].includes(current??'')?current:'territory');setSelection(id?[id]:[]);if(id!==selected){setSelectedNode(null);setMergeTarget(null);}setSelected(id);}
+  function applySubdivision(){if(!activeSubdivision)return;commit(activeSubdivision.project);setActiveRegion(current=>current===territory?.regionId?activeSubdivision.project.territories.find(t=>t.id===selected)?.regionId??null:current);setSelection(activeSubdivision.ids);setSelected(activeSubdivision.ids.at(-1)??null);setSelectedNode(null);setMergeTarget(null);setSubdivision(null);setTool('multi');setStatus(`Territorio dividido en ${activeSubdivision.ids.length} partes, conservando su región. Podés deshacer la operación completa.`);}
+  function cutArea(id:string,a:Point,b:Point){try{const result=divideArea(project,id,a,b);commit(result.project);setActiveRegion(current=>current===project.territories.find(t=>t.id===id)?.regionId?result.project.territories.find(t=>t.id===id)?.regionId??null:current);setSelectedNode(null);setMergeTarget(null);setTool('select');setStatus('Territorio dividido. Las dos partes permanecen en la misma región.');}catch(error){setStatus((error as Error).message);}}
+  function uniteSelected(){try{const next=mergeSelection(project,selectedIds),id=selectedIds[0];commit(next);setSelection([id]);setSelected(id);setSelectedNode(null);setMergeTarget(null);setTool('select');setStatus('Selección unida: ahora es una sola área, sin fronteras internas.');}catch(error){setStatus((error as Error).message);}}
+  function mergeSelected(){if(!selected||!mergeNeighbor)return;try{commit(mergeAreas(project,selected,mergeNeighbor.id));setSelectedNode(null);setMergeTarget(null);setTool('select');setStatus('Áreas fusionadas. Se conservaron el nombre, color, superficie y asignación del área principal.');}catch(error){setStatus((error as Error).message);}}
+  function insertNode(a:string,b:string){try{const result=splitEdge(project,a,b);commit(result.project);setSelectedNode(result.vertexId);setStatus('Nodo agregado en todos los vecinos. Arrastralo para dar forma a la frontera.');}catch(error){setStatus((error as Error).message);}}
+  function deleteNode(){try{commit(removeVertex(project,selectedNode??''));setSelectedNode(null);setStatus('Nodo intermedio quitado de todos los vecinos.');}catch(error){setStatus((error as Error).message);}}
+  function replace(p:MapProject){commit(p);setSelected(null);setSelection([]);setSelectedNode(null);setMergeTarget(null);}
+  function generateMap(options:GenerationOptions){const next=generate(options);next.title=project.title;replace(next);setRegenerate(false);setStatus('Nuevo mapa generado. Podés deshacer para recuperar el anterior.');}
+  async function open(f?:File){if(!f)return;try{if(f.size>3_000_000)throw new Error('El archivo supera 3 MB.');replace(parseProject(await f.text()));setStatus('Proyecto cargado correctamente.');}catch(error){setStatus(`No se pudo abrir: ${(error as Error).message}`);}finally{if(file.current)file.current.value='';}}
+  const hints={lasso:'Arrastrá con el botón izquierdo para dibujar un lazo, o usá el derecho en cualquier herramienta.',multi:'Hacé clic para sumar o quitar áreas. Unilas desde el panel izquierdo.',select:'Arrastrá un territorio para mover su malla y las fronteras vecinas.',vertices:'Arrastrá un nodo. Usá + para agregar detalle; seleccioná un nodo para quitarlo.',labels:'Arrastrá un nombre sobre el mapa para cambiar su posición.',divide:'Dividir: seleccioná un área y marcá dos puntos de su borde. Escape cancela.'};
+  return <div className="app">
+    <header className="topbar"><a className="brand" href="#" aria-label="Atlas, inicio"><span className="brand-icon">◈</span> atlas<span className="brand-caption">EDITOR TERRITORIAL</span></a><div className="top-actions"><span className={`save-indicator ${saved?'':'warning'}`}>● {saved?'Guardado en este navegador':'No se pudo guardar localmente'}</span><button onClick={()=>setRegenerate(true)}>✧ Generar mapa</button><button className={regionsOpen?'active':''} aria-expanded={regionsOpen} aria-controls="regions-panel" onClick={()=>setRegionsOpen(open=>!open)}>Regiones · {regionCount}</button><button onClick={()=>file.current?.click()}>Abrir proyecto</button><button onClick={()=>{download(serializeProject(project),'mapa.atlas.json');setStatus('Proyecto JSON descargado.');}}>Guardar proyecto</button><button className="primary" onClick={()=>{download(exportSvg(project,labels,areasOnly),'mapa.svg','image/svg+xml');setStatus('SVG exportado con las dimensiones del proyecto.');}}>Exportar SVG ↗</button></div><input type="file" accept=".json,application/json" ref={file} hidden onChange={e=>void open(e.target.files?.[0])}/></header>
+    <div className={`workspace ${regionsOpen?'regions-visible':''}`}><aside className="sidebar"><div className="sidebar-intro"><span className="eyebrow">TU MESA DE MAPAS</span><h1>Dale forma<br/>a tu territorio.</h1><p>Generá, explorá y editá un mapa<br/>listo para llevar al papel.</p></div>
+      <EditorSection title="Seleccionar y unir" caption={`${selectedIds.length} territorios`} open={leftSection==='selection'} onToggle={()=>toggleSection('selection')}>
+        <GroupPanel project={project} ids={selectedIds} onSelection={chooseMany} onUnite={uniteSelected} onCommit={commitGroups} onStatus={setStatus}/>
+      </EditorSection>
+      <EditorSection title="Territorio" caption={territory&&selectedIds.length===1?territory.name:undefined} open={leftSection==='territory'} onToggle={()=>toggleSection('territory')}>
+        {territory&&selectedIds.length<=1?<><div className="selected-id">SELECCIONADO / {territory.id.replace('t','').padStart(2,'0')}</div><label>Nombre<input aria-label="Nombre del territorio" value={territory.name} maxLength={100} onChange={e=>updateTerritory({name:e.target.value})}/></label><label>Superficie<select aria-label="Superficie" value={territory.surface} onChange={e=>{const surface=e.target.value as Territory['surface'];updateTerritory({surface,...(surface==='water'?{regionId:null}:{} )});}}><option value="land">Tierra</option><option value="water">Agua</option></select></label><label className="assignment"><input type="checkbox" aria-label="Asignar a una región" checked={territory.regionId!==null} onChange={e=>updateTerritory({regionId:e.target.checked?territory.id:null})}/> Asignar a una región</label><p className="area-state">{territory.regionId===null?'Área libre · no cuenta como región':groupFor(project,territory)?`Grupo: ${groupFor(project,territory)!.name}`:'Región individual'}</p>{territory.regionId!==null?<button className="edit-territory-region" onClick={()=>{setActiveRegion(territory.regionId);setRegionsOpen(true);}}>Editar región y color</button>:<p className="micro">Área libre. Su aspecto depende de si es agua o tierra.</p>}</>:<div className="empty-selection"><p>Seleccioná un solo territorio en el mapa para usar esta sección.</p></div>}
+      </EditorSection>
+      <EditorSection title="Dividir territorio" open={leftSection==='subdivide'} onToggle={()=>toggleSection('subdivide')}>
+        {territory&&selectedIds.length<=1?<><SubdivisionPanel project={project} areaId={territory.id} preview={activeSubdivision} onPreview={result=>{setSubdivision({base:project,areaId:territory.id,result});setTool('select');}} onApply={applySubdivision} onCancel={()=>setSubdivision(null)} onStatus={setStatus}/></>:<div className="empty-selection"><p>Seleccioná un solo territorio en el mapa para usar esta sección.</p></div>}
+      </EditorSection>
+      <EditorSection title="Corte manual y fusión" open={leftSection==='manual'} onToggle={()=>toggleSection('manual')}>
+        {territory&&selectedIds.length<=1?<><div className="area-operations"><h3>Corte manual y unión</h3><button onClick={()=>{setTool('divide');setMergeTarget(null);setStatus('Marcá dos puntos del borde para dividir esta área con una línea recta.');}}>Dividir esta área</button><p className="micro">Las partes conservan la superficie y pertenecen a la misma región, con su color común. Las áreas libres siguen libres.</p><label>Fusionar con<select aria-label="Área vecina para fusionar" value={mergeNeighbor?.id??''} onChange={e=>setMergeTarget(e.target.value||null)}><option value="">Elegí un área vecina</option>{adjacent.map(t=><option key={t.id} value={t.id}>{t.name} · {t.surface==='water'?'agua':'tierra'}</option>)}</select></label>{mergeNeighbor&&<p className="merge-review">Se unirá «{mergeNeighbor.name}» con «{territory.name}». Se conservarán el nombre, color, superficie y asignación de «{territory.name}».</p>}<button disabled={!mergeNeighbor} onClick={mergeSelected}>Fusionar áreas</button><p className="micro">Podés deshacer ambas operaciones. La fusión requiere un contorno simple, sin huecos.</p></div></>:<div className="empty-selection"><p>Seleccioná un solo territorio en el mapa para usar esta sección.</p></div>}
+      </EditorSection>
+
+      <div className="sidebar-note"><span>↗ PENSADO PARA EL PAPEL</span><p>Exportá un SVG vectorial: fronteras nítidas a cualquier tamaño.</p></div>
+    </aside><main className="editor"><div className="document-bar"><div><span className="eyebrow">PROYECTO</span><input aria-label="Título del mapa" value={project.title} maxLength={150} onChange={e=>commit({...project,title:e.target.value})}/></div><span className="document-format">{printSizeLabel(project)} <span>·</span> SVG</span></div>
+      <div className="toolbar"><div className="tool-group">{([['select','↖','Mover'],['vertices','⌘','Nodos'],['labels','T','Nombres'],['divide','╱','Dividir'],['multi','▧','Selección múltiple'],['lasso','◌','Lazo']] as const).map(([id,icon,label])=><button key={id} className={tool===id?'active':''} aria-pressed={tool===id} onClick={()=>{setTool(id);if(id==='lasso')setStatus('Lazo: mantené pulsado, dibujá y soltá para cerrar y sumar áreas.');}}><b>{icon}</b> {label}</button>)}</div><div className="tool-group"><button aria-label="Deshacer" title="Deshacer (Ctrl+Z)" disabled={!canUndo} onClick={()=>{undo();setStatus('Última edición deshecha.');}}>↶</button><button aria-label="Rehacer" title="Rehacer (Ctrl+Mayús+Z)" disabled={!canRedo} onClick={()=>{redo();setStatus('Edición rehecha.');}}>↷</button></div><label className="areas-only-toggle"><input type="checkbox" checked={areasOnly} onChange={e=>setAreasOnly(e.target.checked)}/> Solo áreas</label><label className="labels-toggle"><input type="checkbox" checked={labels} onChange={e=>setLabels(e.target.checked)}/> Etiquetas</label><div className="zoom-control"><button aria-label="Alejar" disabled={zoom<=60} onClick={()=>setZoom(Math.max(60,zoom-20))}>−</button><button title="Ajustar al lienzo" onClick={()=>setZoom(100)}>{zoom}%</button><button aria-label="Acercar" disabled={zoom>=200} onClick={()=>setZoom(Math.min(200,zoom+20))}>+</button></div></div>
+      {tool==='vertices'&&<div className="node-toolbar" aria-label="Edición de nodos"><span>{territory&&selectedIds.length===1?`${territory.vertices.length} vértices · Usá + para agregar y arrastrá los puntos para editar.`:'Seleccioná un territorio para editar sus nodos.'}</span><button disabled={!territory||selectedIds.length!==1||!selectedNode||!territory.vertices.includes(selectedNode)||!!activeSubdivision} onClick={deleteNode}>Quitar nodo seleccionado</button></div>}
+      <div className="canvas-area"><div className="canvas-hint">{activeSubdivision?`VISTA PREVIA · ${activeSubdivision.ids.length} partes · Aplicá o cancelá desde el panel izquierdo.`:hints[tool]}</div><MapCanvas areasOnly={areasOnly} project={activeSubdivision?.project??project} readOnly={!!activeSubdivision} selected={selected} onSelect={selectArea} onCommit={commit} tool={tool} labels={labels} zoom={zoom} onStatus={setStatus} selectedNode={selectedNode} onNode={setSelectedNode} onSplit={insertNode} onCut={cutArea} mergeTarget={mergeNeighbor?.id??null} selectedIds={activeSubdivision?.ids??selectedIds} onToggle={toggleArea} onLasso={selectLasso}/></div>
+      <footer className="statusbar"><span role="status" aria-live="polite">{status}</span><span>{regionCount} regiones <i/> {freeCount} áreas libres</span></footer>
+    </main>{regionsOpen&&<RegionsPanel project={project} activeId={activeRegion} onActive={setActiveRegion} onClose={()=>setRegionsOpen(false)} onCommit={commit} onStatus={setStatus} onSelection={chooseMany}/>}</div>
+    {regenerate&&<GenerationDialog initial={project.generation} onGenerate={generateMap} onClose={()=>setRegenerate(false)}/>}
+  </div>;
+}
