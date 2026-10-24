@@ -30,7 +30,7 @@ export function parseProject(source:string):MapProject {
   validatePrintSize(p.generation);
   if(p.version===4) {
     const g=p.geography;
-    if(!g||!Array.isArray(g.landforms)||g.landforms.length<1||g.landforms.length>12||!Number.isFinite(g.margin)||g.margin<=0||g.margin>=Math.min(p.width,p.height)/2||!/^#[0-9a-f]{6}$/i.test(g.waterColor))throw new Error('Geografía inválida.');
+    if(!g||!Array.isArray(g.landforms)||g.landforms.length<1||g.landforms.length>12||!Number.isFinite(g.margin)||g.margin<0||g.margin>=Math.min(p.width,p.height)/2||!/^#[0-9a-f]{6}$/i.test(g.waterColor))throw new Error('Geografía inválida.');
     const names=new Set<string>();
     for(const land of g.landforms){if(!land||typeof land.id!=='string'||!land.id||names.has(land.id)||typeof land.name!=='string'||!land.name.trim()||land.name.length>100||!Array.isArray(land.vertices)||land.vertices.length<3||land.vertices.length>1000||new Set(land.vertices).size!==land.vertices.length||!land.vertices.every(id=>typeof id==='string'&&Object.hasOwn(p.vertices,id)))throw new Error('Contorno terrestre inválido.');names.add(land.id);}
     if(p.territories.some(t=>t.surface!=='land'))throw new Error('En mapas costeros el agua es fondo geográfico, no un territorio.');

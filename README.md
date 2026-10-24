@@ -1,4 +1,4 @@
-# Atlas · Editor territorial · Versión 6.0
+# Atlas · Editor territorial · Versión 6.1
 
 Editor local con React, TypeScript y SVG para crear mapas imprimibles con fronteras compartidas, agua y tierra sin región. No contiene mecánicas de juego.
 
@@ -27,17 +27,35 @@ npm run build    # TypeScript + producción en dist/
 npm run preview  # Servir la compilación de producción
 ```
 
+## Tierra, regiones y encuadre (v6.1)
+
+El mapa distingue **encuadre**, **tierra/agua** y **asignación regional**. Una masa terrestre puede continuar hasta los lados del encuadre. Quitarle una región a un área no elimina ni deforma la tierra.
+
+- Para un archipiélago como escenario, mantener las masas rodeadas de agua.
+- Para un continente con regiones de interés, prolongar tierra hasta el borde y dejar las áreas exteriores sin región. Las fronteras regionales pueden quedar dentro de una misma masa terrestre.
+- Para dos costas con una isla entre ellas, ajustar masas independientes y prolongar las dos principales hacia sus lados respectivos. Esto representa la distribución de tierra y agua; el río como entidad geométrica divisoria sigue pendiente.
+
+En **Geografía → Masa seleccionada**, elegir **Continuidad de tierra** y pulsar **Prolongar tierra hasta el borde**. Se conserva la costa que mira hacia el interior y se continúa el otro lado hasta el encuadre. Se puede repetir hacia otro lado; se rechazan cruces con otras masas. Esta operación modifica el borrador y, al aplicar, regenera la distribución, como las demás ediciones de Geografía.
+
+**Separación inicial del borde** admite 0–20 % y solo afecta la ubicación de las propuestas nuevas. No crea una franja prohibida ni limita el arrastre posterior. Arrastrar una masa hasta el borde conserva su forma; prolongarla agrega tierra.
+
+Desactivar **Crear región en esta masa** deja sus áreas como tierra de contexto. En Distribuir territorios se puede elegir lo mismo por masa; inicialmente se reserva una sola área para cada masa de contexto. En el mapa ya aplicado, seleccionar una o varias áreas y pulsar **Dejar como tierra sin región**, en **Seleccionar y unir**, quita su asignación sin cambiar vértices, nombres o costas. Se puede deshacer en una operación. La casilla **Asignar a una región** de un territorio permite devolverle una región individual.
+
+La separación entre una región y el borde puede estar ocupada por agua o tierra sin región. **Todavía no se genera automáticamente una franja de ancho numérico alrededor de una región**: se delimita editando sus áreas. Ríos y montañas como entidades que fragmentan territorios e impiden asignaciones regionales quedan para otra iteración. Las medidas físicas de la hoja y su presentación se mantienen independientes de esta separación geográfica.
+
+Los archivos mantienen el esquema v4; margin pasa a registrar solo la separación inicial, admite cero y no restringe la geometría. Para abrir tierras que llegan al encuadre se necesita el editor v6.1 o posterior. Los archivos existentes no se regeneran al actualizar.
+
 ## Costas e islas: geografía primero (v6.0)
 
 1. Pulsar **Generar mapa**, elegir **Costas e islas · geografía primero**, configurar tamaño, semilla y división, y pulsar **Definir geografía**. **Rectángulo clásico** conserva la generación anterior.
-2. En **Definir tierra y agua**, elegir cantidad de islas, extensión de tierra, irregularidad de costa y margen de agua. **Otra propuesta** varía la forma usando la misma semilla. Estos controles reemplazan la propuesta, sin modificar el proyecto abierto.
-3. Arrastrar una masa para moverla, o sus puntos para ajustar la costa. El selector permite elegir y nombrar cada masa, agregar un punto en su tramo más largo o quitarla. Se impiden cruces, superposiciones y la invasión del margen de agua.
+2. En **Definir tierra y agua**, elegir cantidad de islas, extensión de tierra, irregularidad de costa y separación inicial del borde. **Otra propuesta** varía la forma usando la misma semilla. Estos controles reemplazan la propuesta, sin modificar el proyecto abierto.
+3. Arrastrar una masa para moverla, o sus puntos para ajustar la costa. El selector permite elegir y nombrar cada masa, agregar un punto en su tramo más largo o quitarla. Se impiden cruces y superposiciones, y se permite llegar al encuadre.
 4. Continuar a **Distribuir territorios**, indicar la cantidad por masa y pulsar **Previsualizar territorios**. Se admiten entre 4 y 120 en total, con al menos uno por masa. La distribución inicial se propone según la superficie.
 5. **Aplicar mapa costero** reemplaza el mapa en una sola operación que puede deshacerse. Cancelar conserva el proyecto anterior.
 
 El botón superior **Geografía** abre las costas del mapa actual cuando existen, o propone una geografía nueva para mapas antiguos. **Editar aquí y aplicar genera otra distribución de territorios y regiones**: no conserva las divisiones o nombres actuales. Revisar la vista previa antes de aplicar. Para ajustes puntuales que conserven los territorios, usar **Nodos** en el lienzo principal.
 
-El mar es un fondo sin territorios seleccionables; las costas son límites geométricos reales. Cada masa comienza con una región, que luego puede reorganizarse desde **Regiones**, incluso agrupando territorios de islas diferentes. Las divisiones posteriores conservan la región. Los territorios costeros siempre son tierra y el agua se define en Geografía. Los mapas rectangulares anteriores siguen admitiendo áreas de agua como antes.
+El mar es un fondo sin territorios seleccionables; las costas son límites geométricos reales. Cada masa marcada para ello comienza con una región, que luego puede reorganizarse desde **Regiones**, incluso agrupando territorios de islas diferentes. Las divisiones posteriores conservan la región. Los territorios costeros siempre son tierra y el agua se define en Geografía. Los mapas rectangulares anteriores siguen admitiendo áreas de agua como antes.
 
 Esta primera etapa admite masas simples separadas, movimiento y edición de vértices. **Todavía no permite lagos interiores, dibujo libre de costas ni territorios con varios contornos**. Cambiar los parámetros de propuestas no conserva los ajustes manuales del borrador. JSON y SVG incluyen el mar y las costas; los proyectos costeros usan el esquema v4 y requieren esta versión del editor.
 
@@ -202,6 +220,10 @@ La carga valida versión, tipos, referencias, colores, áreas positivas, cruces,
 **Próximas extensiones:** implementar `MapImporter` para GeoJSON/SVG y normalizar fronteras hacia la misma malla editable. El esquema v4 admite masas de tierra separadas, con un anillo simple por territorio. Huecos, multipolígonos y proyección requieren ampliar el esquema y sus validadores. Implementar `MapExporter` para PDF; actualmente puede imprimirse el SVG usando «Guardar como PDF». Para mapas mayores, añadir índice espacial y validación en un worker: el chequeo actual de cruces es cuadrático.
 
 ## Ejemplos y verificación
+
+- `examples/continente-contexto-v6.1.atlas.json` y `examples/continente-contexto-v6.1.svg`: ejemplo esquemático de continente hasta el borde con tierra exterior sin región. No representa una geografía histórica.
+
+Verificación v6.1: 135 pruebas aprobadas, compilación y edición en navegador comprobadas. Se verificaron continuidad hasta dos bordes, islas intactas, tierra sin región y Deshacer recuperando exactamente geometría, colores y asignaciones.
 
 - `examples/costas-islas-v6.atlas.json` y `examples/costas-islas-v6.svg`: continente y tres islas, 32 territorios, mar sin territorios y tamaño físico 70 × 50 cm.
 

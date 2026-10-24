@@ -1,5 +1,15 @@
 # Historial de versiones
 
+## 0.6.1 — Tierra continua y contexto sin región
+
+- Separa encuadre, geografía y asignación regional: el borde puede cortar tierra.
+- Elimina la franja de agua obligatoria; separación inicial entre 0 y 20 %.
+- Prolongación de una masa a cualquier lado, conservando la costa interior y las islas.
+- Arrastre hasta el encuadre y creación opcional de regiones por masa.
+- Quitar asignaciones en selección múltiple, conservando geografía y nombres.
+- 135 pruebas y comprobación visual de edición y Deshacer.
+- Pendiente: franjas numéricas por región, ríos/montañas divisores y dibujo libre.
+
 ## 0.6.0 — Geografía antes de territorios
 
 - Propuestas reproducibles de continente e islas, con margen de agua.

@@ -33,7 +33,8 @@ export function validCoastCoverage(p:MapProject) {
   for(const land of geo.landforms) {
     if(land.vertices.some(id=>!p.vertices[id]))return false;
     const points=land.vertices.map(id=>p.vertices[id]);
-    if(points.some(v=>v.x<geo.margin-1e-6||v.y<geo.margin-1e-6||v.x>p.width-geo.margin+1e-6||v.y>p.height-geo.margin+1e-6))return false;
+    // The frame can cut through continental land. The proposal's initial gap is
+    // a placement preference, not a forbidden strip around the whole map.
     const size=area(points);if(size<1)return false;landArea+=size;
     for(let i=0;i<land.vertices.length;i++){const key=edgeKey(land.vertices[i],land.vertices[(i+1)%land.vertices.length]);if(coast.has(key))return false;coast.add(key);}
   }

@@ -3,6 +3,7 @@ export type Territory = { id: string; name: string; color: string; vertices: str
 export type GenerationOptions = { count: number; seed: string; irregularity: number; segments?: number; widthMm?:number; heightMm?:number };
 export type AreaGroup = { id: string; name: string; color: string; keepSingle?: true };
 export type Landform = { id:string; name:string; vertices:string[] };
+// margin records the proposal's initial gap; it never constrains later editing.
 export type Geography = { landforms:Landform[]; margin:number; waterColor:string };
 export type MapProject = {
   version: 3 | 4; title: string; width: number; height: number; groups: AreaGroup[];

@@ -2,6 +2,11 @@
 
 - [x] Separar tablero, geografía y territorios: propuestas de costas e islas,
       edición visual, mar sin territorios y distribución por masa.
+- [x] Continuidad terrestre hasta el encuadre y tierra de contexto sin región.
+- [ ] Definir una separación numérica por región creando tierra de contexto,
+      sin recortar ni deformar las masas terrestres.
+- [ ] Ríos y montañas como entidades que fragmentan áreas e impiden regiones
+      sobre sus superficies, con geometría y edición propias.
 - [ ] Dibujar costas libremente y recortar/agregar masas sin regenerar regiones.
 - [ ] Exportar PDF directamente, conservando las medidas físicas.
 - [ ] Exportar o imprimir tableros en mosaico sobre varias hojas.
