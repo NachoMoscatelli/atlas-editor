@@ -33,7 +33,8 @@ function insertBoundary(p:MapProject,id:string,point:Point) {
   if(hit.distance>EPS)throw new Error('Los extremos deben estar sobre el borde del área.');
   for(const id of [hit.a,hit.b])if(Math.hypot(p.vertices[id].x-hit.point.x,p.vertices[id].y-hit.point.y)<EPS)return id;
   const vertex=uniqueId(p.vertices,'cut');p.vertices[vertex]=hit.point;
-  p.territories.forEach(t=>{const ids=t.vertices;t.vertices=ids.flatMap((a,i)=>edgeKey(a,ids[(i+1)%ids.length])===edgeKey(hit.a,hit.b)?[a,vertex]:[a]);});return vertex;
+  p.territories.forEach(t=>{const ids=t.vertices;t.vertices=ids.flatMap((a,i)=>edgeKey(a,ids[(i+1)%ids.length])===edgeKey(hit.a,hit.b)?[a,vertex]:[a]);});
+  p.geography?.landforms.forEach(land=>{const ids=land.vertices;land.vertices=ids.flatMap((a,i)=>edgeKey(a,ids[(i+1)%ids.length])===edgeKey(hit.a,hit.b)?[a,vertex]:[a]);});return vertex;
 }
 function assertResult(p:MapProject) {
   if(p.territories.length>120||Object.keys(p.vertices).length>3000||p.territories.some(t=>t.vertices.length>500))throw new Error('La operación supera el límite de áreas o nodos.');

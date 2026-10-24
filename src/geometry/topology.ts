@@ -22,6 +22,27 @@ export function validGeometry(p:MapProject) {
       if(onSegment(p.vertices[common],p.vertices[one],p.vertices[two])||onSegment(p.vertices[common],p.vertices[two],p.vertices[one])) return false;
     } else if(intersects(p.vertices[a],p.vertices[b],p.vertices[c],p.vertices[d])) return false;
   }
+  if(p.geography&&!validCoastCoverage(p))return false;
+  return true;
+}
+/** Every exposed territory edge must be a coast, and every coast must be used once. */
+export function validCoastCoverage(p:MapProject) {
+  const geo=p.geography;if(!geo)return true;
+  const coast=new Set<string>(),incidence=new Map<string,number>();
+  let landArea=0;
+  for(const land of geo.landforms) {
+    if(land.vertices.some(id=>!p.vertices[id]))return false;
+    const points=land.vertices.map(id=>p.vertices[id]);
+    if(points.some(v=>v.x<geo.margin-1e-6||v.y<geo.margin-1e-6||v.x>p.width-geo.margin+1e-6||v.y>p.height-geo.margin+1e-6))return false;
+    const size=area(points);if(size<1)return false;landArea+=size;
+    for(let i=0;i<land.vertices.length;i++){const key=edgeKey(land.vertices[i],land.vertices[(i+1)%land.vertices.length]);if(coast.has(key))return false;coast.add(key);}
+  }
+  p.territories.forEach(t=>t.vertices.forEach((id,i)=>{const key=edgeKey(id,t.vertices[(i+1)%t.vertices.length]);incidence.set(key,(incidence.get(key)??0)+1);}));
+  if([...coast].some(key=>incidence.get(key)!==1)||[...incidence].some(([key,n])=>coast.has(key)?n!==1:n!==2))return false;
+  if(Math.abs(landArea-p.territories.reduce((sum,t)=>sum+area(t.vertices.map(id=>p.vertices[id])),0))>.1)return false;
+  // Crossing coasts are already caught by validGeometry. Also reject nested islands.
+  const inside=(q:Point,ids:string[])=>{let yes=false;for(let i=0,j=ids.length-1;i<ids.length;j=i++){const a=p.vertices[ids[i]],b=p.vertices[ids[j]];if((a.y>q.y)!==(b.y>q.y)&&q.x<(b.x-a.x)*(q.y-a.y)/(b.y-a.y)+a.x)yes=!yes;}return yes;};
+  for(let i=0;i<geo.landforms.length;i++)for(let j=i+1;j<geo.landforms.length;j++)if(inside(p.vertices[geo.landforms[i].vertices[0]],geo.landforms[j].vertices)||inside(p.vertices[geo.landforms[j].vertices[0]],geo.landforms[i].vertices))return false;
   return true;
 }
 export function distanceToSegment(p:Point,a:Point,b:Point) {

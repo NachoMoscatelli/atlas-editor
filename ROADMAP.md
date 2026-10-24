@@ -1,5 +1,8 @@
 # Pendientes acordados
 
+- [x] Separar tablero, geografía y territorios: propuestas de costas e islas,
+      edición visual, mar sin territorios y distribución por masa.
+- [ ] Dibujar costas libremente y recortar/agregar masas sin regenerar regiones.
 - [ ] Exportar PDF directamente, conservando las medidas físicas.
 - [ ] Exportar o imprimir tableros en mosaico sobre varias hojas.
 - [ ] Importar GeoJSON/SVG como herramientas del editor.

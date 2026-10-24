@@ -11,6 +11,7 @@ export function splitEdge(project: MapProject, a: string, b: string): { project:
   const vertexId=`edit${index}`, A=next.vertices[a], B=next.vertices[b];
   next.vertices[vertexId]={x:(A.x+B.x)/2,y:(A.y+B.y)/2};
   next.territories.forEach(t=>{const ids=t.vertices;t.vertices=ids.flatMap((id,i)=>edgeKey(id,ids[(i+1)%ids.length])===edgeKey(a,b)?[id,vertexId]:[id]);});
+  next.geography?.landforms.forEach(t=>{const ids=t.vertices;t.vertices=ids.flatMap((id,i)=>edgeKey(id,ids[(i+1)%ids.length])===edgeKey(a,b)?[id,vertexId]:[id]);});
   if(!validGeometry(next))throw new Error('No se puede subdividir este tramo: es demasiado pequeño.');
   return {project:next,vertexId};
 }
@@ -23,7 +24,7 @@ export function removeVertex(project:MapProject,id:string):MapProject {
   if((v.x===0||v.x===project.width)&&(v.y===0||v.y===project.height))throw new Error('Las esquinas de la hoja están protegidas.');
   if(project.territories.some(t=>t.vertices.includes(id)&&t.vertices.length<=3))throw new Error('Cada área necesita al menos tres nodos.');
   const next=structuredClone(project);
-  next.territories.forEach(t=>{t.vertices=t.vertices.filter(n=>n!==id);});delete next.vertices[id];
+  next.territories.forEach(t=>{t.vertices=t.vertices.filter(n=>n!==id);});next.geography?.landforms.forEach(t=>{t.vertices=t.vertices.filter(n=>n!==id);});delete next.vertices[id];
   if(!validGeometry(next))throw new Error('Quitar este nodo produciría un cruce de fronteras.');
   return next;
 }

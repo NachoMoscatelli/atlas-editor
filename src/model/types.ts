@@ -2,8 +2,11 @@ export type Point = { x: number; y: number };
 export type Territory = { id: string; name: string; color: string; vertices: string[]; label: Point; surface: 'land' | 'water'; regionId: string | null };
 export type GenerationOptions = { count: number; seed: string; irregularity: number; segments?: number; widthMm?:number; heightMm?:number };
 export type AreaGroup = { id: string; name: string; color: string; keepSingle?: true };
+export type Landform = { id:string; name:string; vertices:string[] };
+export type Geography = { landforms:Landform[]; margin:number; waterColor:string };
 export type MapProject = {
-  version: 3; title: string; width: number; height: number; groups: AreaGroup[];
+  version: 3 | 4; title: string; width: number; height: number; groups: AreaGroup[];
+  geography?:Geography;
   vertices: Record<string, Point>; territories: Territory[];
   generation: GenerationOptions;
 };

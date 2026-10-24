@@ -13,7 +13,7 @@ export function parseProject(source:string):MapProject {
   if(raw?.version===2){raw.version=3;raw.groups=[];}
   const p=raw as MapProject;
   const point=(v:unknown):boolean=>!!v&&typeof v==='object'&&Number.isFinite((v as {x:number}).x)&&Number.isFinite((v as {y:number}).y);
-  if(!p||p.version!==3||typeof p.title!=='string'||p.title.length>150||!Number.isFinite(p.width)||!Number.isFinite(p.height)||p.width<100||p.height<100||p.width>10000||p.height>10000)throw new Error('Formato o versión de proyecto incompatible.');
+  if(!p||![3,4].includes(p.version)||typeof p.title!=='string'||p.title.length>150||!Number.isFinite(p.width)||!Number.isFinite(p.height)||p.width<100||p.height<100||p.width>10000||p.height>10000)throw new Error('Formato o versión de proyecto incompatible.');
   if(!p.vertices||typeof p.vertices!=='object'||Array.isArray(p.vertices)||Object.keys(p.vertices).length>3000||!Object.values(p.vertices).every(point)||!Array.isArray(p.territories)||p.territories.length<1||p.territories.length>120)throw new Error('Malla inválida o demasiado grande.');
   const ids=new Set<string>();
   if(!Array.isArray(p.groups)||p.groups.length>120)throw new Error('Grupos inválidos.');
@@ -28,18 +28,25 @@ export function parseProject(source:string):MapProject {
   if(!p.generation||!Number.isInteger(p.generation.count)||p.generation.count<4||p.generation.count>120||typeof p.generation.seed!=='string'||p.generation.seed.length>150||!Number.isFinite(p.generation.irregularity)||p.generation.irregularity<0||p.generation.irregularity>1)throw new Error('Parámetros de generación inválidos.');
   if(!Number.isInteger(p.generation.segments)||p.generation.segments!<1||p.generation.segments!>6)throw new Error('Detalle de fronteras inválido.');
   validatePrintSize(p.generation);
+  if(p.version===4) {
+    const g=p.geography;
+    if(!g||!Array.isArray(g.landforms)||g.landforms.length<1||g.landforms.length>12||!Number.isFinite(g.margin)||g.margin<=0||g.margin>=Math.min(p.width,p.height)/2||!/^#[0-9a-f]{6}$/i.test(g.waterColor))throw new Error('Geografía inválida.');
+    const names=new Set<string>();
+    for(const land of g.landforms){if(!land||typeof land.id!=='string'||!land.id||names.has(land.id)||typeof land.name!=='string'||!land.name.trim()||land.name.length>100||!Array.isArray(land.vertices)||land.vertices.length<3||land.vertices.length>1000||new Set(land.vertices).size!==land.vertices.length||!land.vertices.every(id=>typeof id==='string'&&Object.hasOwn(p.vertices,id)))throw new Error('Contorno terrestre inválido.');names.add(land.id);}
+    if(p.territories.some(t=>t.surface!=='land'))throw new Error('En mapas costeros el agua es fondo geográfico, no un territorio.');
+  }else if(p.geography!==undefined)throw new Error('La geografía requiere un proyecto v4.');
   const incidence=new Map<string,number>();
   p.territories.forEach(t=>t.vertices.forEach((a,i)=>{const key=[a,t.vertices[(i+1)%t.vertices.length]].sort().join(':');incidence.set(key,(incidence.get(key)||0)+1);}));
   const boundary=(a:{x:number;y:number},b:{x:number;y:number})=>(a.x===b.x&&(a.x===0||a.x===p.width))||(a.y===b.y&&(a.y===0||a.y===p.height));
   const invalidBoundary=edges(p).some(([a,b])=>incidence.get(edgeKey(a,b))===1&&!boundary(p.vertices[a],p.vertices[b]));
   const totalArea=p.territories.reduce((n,t)=>n+area(t.vertices.map(id=>p.vertices[id])),0);
-  if(invalidBoundary||Math.abs(totalArea-p.width*p.height)>.1||[...incidence.values()].some(n=>n>2)||!validGeometry(p))throw new Error('La malla contiene cruces, huecos, solapamientos o coordenadas inválidas.');
+  if((!p.geography&&(invalidBoundary||Math.abs(totalArea-p.width*p.height)>.1))||[...incidence.values()].some(n=>n>2)||!validGeometry(p))throw new Error('La malla contiene cruces, huecos, solapamientos o coordenadas inválidas.');
   return p;
 }
 export function download(content:string|Blob,name:string,mime='application/json') {
   const url=URL.createObjectURL(content instanceof Blob?content:new Blob([content],{type:mime}));
   const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-const KEY='atlas.project.v3';
-export function loadLocal():MapProject|null {try{const s=localStorage.getItem(KEY)??localStorage.getItem('atlas.project.v2')??localStorage.getItem('atlas.project.v1');return s?parseProject(s):null;}catch{return null;}}
+const KEY='atlas.project.v4';
+export function loadLocal():MapProject|null {try{const s=localStorage.getItem(KEY)??localStorage.getItem('atlas.project.v3')??localStorage.getItem('atlas.project.v2')??localStorage.getItem('atlas.project.v1');return s?parseProject(s):null;}catch{return null;}}
 export function saveLocal(p:MapProject) {localStorage.setItem(KEY,serializeProject(p));}

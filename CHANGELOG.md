@@ -1,5 +1,15 @@
 # Historial de versiones
 
+## 0.6.0 — Geografía antes de territorios
+
+- Propuestas reproducibles de continente e islas, con margen de agua.
+- Editor visual de masas y vértices de costa, nombres y puntos adicionales.
+- Cantidad de territorios por masa, vista previa y aplicación reversible.
+- Océano como fondo, fuera de la malla territorial; costas compartidas coherentes.
+- Archivo v4, compatibilidad con v1/v2/v3 y exportación SVG costera.
+- 127 pruebas; verificación de vista previa, aplicar y deshacer en navegador.
+- Primera etapa: sin lagos interiores, dibujo libre ni multipolígonos.
+
 ## 0.5.3 — Base inicial del repositorio
 
 Esta versión reúne el desarrollo previo del editor. El historial de Git comienza
